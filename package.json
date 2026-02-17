@@ -6,9 +6,11 @@
   "workspaces": [
     "packages/shared",
     "packages/client",
-    "packages/server"
+    "packages/server",
+    "packages/cli"
   ],
   "scripts": {
+    "cli": "node --import tsx packages/cli/src/index.ts",
     "build": "npm run build --workspaces",
     "build:shared": "npm run build -w packages/shared",
     "build:client": "npm run build -w packages/client",

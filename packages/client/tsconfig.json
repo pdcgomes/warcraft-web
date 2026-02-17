@@ -6,7 +6,10 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "composite": false,
     "declaration": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "paths": {
+      "@warcraft-web/shared": ["../shared/src/index.ts"]
+    }
   },
   "include": ["src/**/*.ts"],
   "references": [

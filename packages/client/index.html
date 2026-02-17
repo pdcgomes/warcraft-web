@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Warcraft Web</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      user-select: none;
+    }
+    #game-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    canvas {
+      display: block;
+    }
+    #hud {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 160px;
+      background: linear-gradient(to bottom, #1a1a2e, #16213e);
+      border-top: 2px solid #c8a82e;
+      display: flex;
+      align-items: stretch;
+      z-index: 10;
+      pointer-events: auto;
+    }
+    #resource-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 28px;
+      background: linear-gradient(to bottom, #1a1a2e, #0f0f23);
+      border-bottom: 1px solid #c8a82e;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 24px;
+      z-index: 10;
+      font-size: 13px;
+      color: #e0d6a0;
+      pointer-events: auto;
+    }
+    .resource-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .resource-icon {
+      width: 14px;
+      height: 14px;
+      border-radius: 2px;
+    }
+    .gold-icon { background: #ffd700; }
+    .lumber-icon { background: #8b4513; }
+    #minimap-panel {
+      width: 200px;
+      height: 100%;
+      padding: 8px;
+      border-right: 1px solid #c8a82e44;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #minimap-canvas {
+      image-rendering: pixelated;
+    }
+    #info-panel {
+      flex: 1;
+      padding: 8px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    #info-panel .unit-name {
+      font-size: 14px;
+      font-weight: bold;
+      color: #c8a82e;
+      margin-bottom: 4px;
+    }
+    #info-panel .unit-stats {
+      font-size: 12px;
+      color: #a0a0c0;
+    }
+    #action-panel {
+      width: 200px;
+      height: 100%;
+      padding: 8px;
+      border-left: 1px solid #c8a82e44;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      gap: 4px;
+    }
+    .action-btn {
+      background: #2a2a4e;
+      border: 1px solid #c8a82e66;
+      border-radius: 4px;
+      color: #e0d6a0;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 2px;
+      padding: 2px;
+    }
+    .action-btn:hover {
+      background: #3a3a6e;
+      border-color: #c8a82e;
+    }
+    .action-btn-active {
+      background: #4a3a1e;
+      border-color: #ffd700;
+      box-shadow: 0 0 4px #ffd70066;
+    }
+    .order-hotkey {
+      font-size: 8px;
+      color: #888;
+      font-weight: bold;
+    }
+    .order-name {
+      font-size: 10px;
+    }
+    #selection-box {
+      position: absolute;
+      border: 1px solid #00ff00;
+      background: rgba(0, 255, 0, 0.1);
+      pointer-events: none;
+      display: none;
+      z-index: 5;
+    }
+    #event-log {
+      position: absolute;
+      bottom: 170px;
+      left: 8px;
+      width: 320px;
+      max-height: 200px;
+      overflow-y: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      pointer-events: none;
+      z-index: 9;
+    }
+    .event-log-line {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-size: 12px;
+      line-height: 1.5;
+      padding: 1px 6px;
+      text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.9);
+      transition: opacity 0.5s ease;
+    }
+    .event-log-sender {
+      font-weight: bold;
+      margin-right: 6px;
+    }
+    .event-log-sender::after {
+      content: ':';
+    }
+    .event-log-msg {
+      color: #d0d0e0;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="resource-bar">
+      <div class="resource-item">
+        <div class="resource-icon gold-icon"></div>
+        <span id="gold-count">0</span>
+      </div>
+      <div class="resource-item">
+        <div class="resource-icon lumber-icon"></div>
+        <span id="lumber-count">0</span>
+      </div>
+      <div class="resource-item" style="margin-left: auto;">
+        <span id="tick-count">Tick: 0</span>
+      </div>
+    </div>
+    <div id="selection-box"></div>
+    <div id="hud">
+      <div id="minimap-panel">
+        <canvas id="minimap-canvas" width="180" height="140"></canvas>
+      </div>
+      <div id="info-panel">
+        <div class="unit-name" id="selected-name">No selection</div>
+        <div class="unit-stats" id="selected-stats"></div>
+      </div>
+      <div id="action-panel"></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
