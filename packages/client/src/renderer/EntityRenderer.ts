@@ -51,8 +51,9 @@ export class EntityRenderer {
   /**
    * Snapshot of entity positions (fixed-point) taken just before each tick.
    * Used for smooth interpolation between ticks.
+   * Exposed as readonly so DebugRenderer can use the same interpolation.
    */
-  private prevPositions: Map<EntityId, { x: number; y: number }> = new Map();
+  readonly prevPositions: Map<EntityId, { x: number; y: number }> = new Map();
 
   constructor(parentContainer: Container, game: LocalGame) {
     this.parentContainer = parentContainer;
