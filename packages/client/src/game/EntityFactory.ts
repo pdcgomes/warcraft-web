@@ -8,7 +8,7 @@ import type { EntityId, UnitKind, FactionId, BuildingKind } from '@warcraft-web/
 /**
  * Unit stat definitions: keyed by UnitKind.
  */
-const UNIT_STATS: Record<string, {
+export const UNIT_STATS: Record<string, {
   name: string;
   hp: number;
   speed: number;

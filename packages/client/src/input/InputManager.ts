@@ -10,6 +10,7 @@ import type { EntityId, OrderId, OrderDefinition, UnitKind, EventSender } from '
 import type { GameRenderer } from '../renderer/GameRenderer.js';
 import type { LocalGame } from '../game/LocalGame.js';
 import { SelectionBox } from '../ui/SelectionBox.js';
+import { debugState } from '../debug/DebugState.js';
 
 const CAMERA_SCROLL_SPEED = 8;
 const EDGE_SCROLL_MARGIN = 20;
@@ -496,6 +497,9 @@ export class InputManager {
     const mov = world.getComponent(entityId, Movement);
     if (mov) mov.clearPath();
 
+    // Remove debug path for this entity
+    debugState.activePaths = debugState.activePaths.filter(e => e.entityId !== entityId);
+
     const combat = world.getComponent(entityId, Combat);
     if (combat) combat.targetEntity = null;
 
@@ -511,6 +515,13 @@ export class InputManager {
     const goalTileX = Math.round(targetX / 1000);
     const goalTileY = Math.round(targetY / 1000);
     const offsets = InputManager.getFormationOffsets(entities.length);
+
+    // Clear previous debug paths for these entities
+    if (debugState.showPaths) {
+      debugState.activePaths = debugState.activePaths.filter(
+        e => !entities.includes(e.entityId),
+      );
+    }
 
     for (let i = 0; i < entities.length; i++) {
       const entityId = entities[i];
@@ -536,8 +547,15 @@ export class InputManager {
       const path = findPath(this.game.gameMap, startTileX, startTileY, unitGoalX, unitGoalY);
       if (path.length > 0) {
         mov.setPath(path);
+        if (debugState.showPaths) {
+          debugState.activePaths.push({ entityId, path: [...path] });
+        }
       } else {
-        mov.setPath([{ x: unitGoalX * 1000, y: unitGoalY * 1000 }]);
+        const fallback = [{ x: unitGoalX * 1000, y: unitGoalY * 1000 }];
+        mov.setPath(fallback);
+        if (debugState.showPaths) {
+          debugState.activePaths.push({ entityId, path: [...fallback] });
+        }
       }
     }
 
