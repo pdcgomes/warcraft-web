@@ -1,0 +1,25 @@
+{
+  "name": "warcraft-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A web-based real-time strategy game with classic isometric gameplay",
+  "workspaces": [
+    "packages/shared",
+    "packages/client",
+    "packages/server"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "build:shared": "npm run build -w packages/shared",
+    "build:client": "npm run build -w packages/client",
+    "build:server": "npm run build -w packages/server",
+    "dev": "npm run dev -w packages/client",
+    "dev:server": "npm run dev -w packages/server",
+    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules",
+    "typecheck": "npm run typecheck --workspaces",
+    "lint": "eslint packages/*/src/**/*.ts"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
