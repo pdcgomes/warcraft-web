@@ -24,6 +24,16 @@ export type { ResourceType } from './components/ResourceCarrier.js';
 export { ResourceSource } from './components/ResourceSource.js';
 export { Production } from './components/Production.js';
 export type { ProductionQueueItem } from './components/Production.js';
+export { UnitBehavior } from './components/UnitBehavior.js';
+export type { BehaviorState } from './components/UnitBehavior.js';
+export { Collider } from './components/Collider.js';
+
+// Game data
+export { PlayerResources } from './game/PlayerResources.js';
+export { ORDER_DEFINITIONS, UNIT_ORDERS, getAvailableOrders } from './game/Orders.js';
+export type { OrderId, OrderTargeting, OrderDefinition } from './game/Orders.js';
+export { GameEventLog } from './game/GameEventLog.js';
+export type { GameEvent, GameEventType, EventSender } from './game/GameEventLog.js';
 
 // Math
 export { FP_SCALE, toFixed, toFloat, fpMul, fpDiv, distanceSquared, isqrt, fpDistance } from './math/FixedPoint.js';
@@ -32,6 +42,30 @@ export {
   tileToScreen, screenToTile, screenToTileRounded, getTileDepth,
 } from './math/IsoMath.js';
 
+// Systems
+export { MovementSystem } from './systems/MovementSystem.js';
+export { CombatSystem } from './systems/CombatSystem.js';
+export { ResourceGatheringSystem } from './systems/ResourceGatheringSystem.js';
+export { ProductionSystem } from './systems/ProductionSystem.js';
+export type { UnitSpawnCallback } from './systems/ProductionSystem.js';
+export { BuildingConstructionSystem } from './systems/BuildingConstructionSystem.js';
+export { PatrolSystem } from './systems/PatrolSystem.js';
+export { CollisionSystem } from './systems/CollisionSystem.js';
+export { DeathCleanupSystem } from './systems/DeathCleanupSystem.js';
+
 // Map
 export { TerrainType, TERRAIN_DATA } from './map/Terrain.js';
 export type { TerrainInfo } from './map/Terrain.js';
+export { GameMap } from './map/GameMap.js';
+export { generateStarterMap } from './map/MapGenerator.js';
+export type { ResourceSpawn, PlayerSpawn, GeneratedMap } from './map/MapGenerator.js';
+export { findPath } from './map/Pathfinding.js';
+
+// Protocol
+export type {
+  ClientMessage, ClientJoinMessage, ClientReadyMessage,
+  ClientCommandMessage, ClientChecksumMessage,
+  ServerMessage, ServerWelcomeMessage, ServerLobbyUpdateMessage,
+  ServerGameStartMessage, ServerTickMessage, ServerDesyncMessage,
+  GameCommand as ProtocolGameCommand,
+} from './protocol/Protocol.js';
