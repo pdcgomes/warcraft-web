@@ -114,6 +114,17 @@ export class EntityRenderer {
       sprite.container.y = screen.y;
       sprite.container.zIndex = getTileDepth({ x: renderTileX, y: renderTileY });
 
+      // Fog-of-war visibility: hide enemy entities in non-visible tiles
+      const owner = world.getComponent(entityId, Owner);
+      const fog = this.game.fog;
+      if (fog && owner && owner.playerId !== this.game.localPlayerId && owner.playerId !== 0) {
+        const tileX = Math.floor(renderTileX);
+        const tileY = Math.floor(renderTileY);
+        sprite.container.visible = fog.isVisible(tileX, tileY);
+      } else {
+        sprite.container.visible = true;
+      }
+
       const selectable = world.getComponent(entityId, Selectable);
       sprite.selectionCircle.visible = selectable?.selected ?? false;
 

@@ -33,6 +33,13 @@ export { ORDER_DEFINITIONS, UNIT_ORDERS, getAvailableOrders } from './game/Order
 export type { OrderId, OrderTargeting, OrderDefinition } from './game/Orders.js';
 export { GameEventLog } from './game/GameEventLog.js';
 export type { GameEvent, GameEventType, EventSender } from './game/GameEventLog.js';
+export { FogOfWar } from './game/FogOfWar.js';
+
+// Data tables
+export { UNIT_DATA, getUnitDisplayName, meetsPrerequisites, getTrainableUnits } from './data/UnitData.js';
+export type { ResourceCost, UnitDataEntry } from './data/UnitData.js';
+export { BUILDING_DATA, getBuildableBuildings } from './data/BuildingData.js';
+export type { BuildingDataEntry } from './data/BuildingData.js';
 
 // Math
 export type { Point } from './math/Point.js';
@@ -52,6 +59,7 @@ export type { UnitSpawnCallback } from './systems/ProductionSystem.js';
 export { BuildingConstructionSystem } from './systems/BuildingConstructionSystem.js';
 export { PatrolSystem } from './systems/PatrolSystem.js';
 export { CollisionSystem } from './systems/CollisionSystem.js';
+export { RepairSystem } from './systems/RepairSystem.js';
 export { DeathCleanupSystem } from './systems/DeathCleanupSystem.js';
 
 // Map

@@ -1,14 +1,22 @@
 import {
   Selectable, Owner, UnitType, Building, Health, Combat,
   ResourceCarrier, Production,
+  BUILDING_DATA, UNIT_DATA, getUnitDisplayName,
 } from '@warcraft-web/shared';
-import type { EntityId, OrderDefinition } from '@warcraft-web/shared';
+import type { EntityId, OrderDefinition, BuildingKind, ProductionQueueItem } from '@warcraft-web/shared';
 import type { LocalGame } from '../game/LocalGame.js';
 import type { GameRenderer } from '../renderer/GameRenderer.js';
 import type { InputManager } from '../input/InputManager.js';
 
+function hpBarColor(ratio: number): string {
+  if (ratio > 0.6) return '#4caf50';
+  if (ratio > 0.3) return '#ff9800';
+  return '#f44336';
+}
+
 /**
- * Manages the HUD overlay: resource display, selected unit info, order buttons.
+ * Manages the HUD overlay: resource display, selected unit info, order buttons,
+ * build submenus, and production buttons.
  */
 export class HUD {
   private readonly game: LocalGame;
@@ -17,13 +25,14 @@ export class HUD {
 
   private goldEl: HTMLElement;
   private lumberEl: HTMLElement;
+  private supplyEl: HTMLElement;
   private tickEl: HTMLElement;
   private nameEl: HTMLElement;
   private statsEl: HTMLElement;
   private actionPanel: HTMLElement;
 
-  /** Track the last rendered order set to avoid redundant DOM updates. */
-  private lastOrderKey: string = '';
+  /** Track the last rendered panel content to avoid redundant DOM updates. */
+  private lastPanelKey: string = '';
 
   constructor(game: LocalGame, renderer: GameRenderer, input: InputManager) {
     this.game = game;
@@ -32,6 +41,7 @@ export class HUD {
 
     this.goldEl = document.getElementById('gold-count')!;
     this.lumberEl = document.getElementById('lumber-count')!;
+    this.supplyEl = document.getElementById('supply-count')!;
     this.tickEl = document.getElementById('tick-count')!;
     this.nameEl = document.getElementById('selected-name')!;
     this.statsEl = document.getElementById('selected-stats')!;
@@ -45,9 +55,13 @@ export class HUD {
   }
 
   private updateResources(): void {
-    const res = this.game.getPlayerResources(this.game.localPlayerId);
+    const pid = this.game.localPlayerId;
+    const res = this.game.getPlayerResources(pid);
     this.goldEl.textContent = res.gold.toString();
     this.lumberEl.textContent = res.lumber.toString();
+
+    const supply = this.game.playerResources.getSupply(pid);
+    this.supplyEl.textContent = `${supply.used}/${supply.cap}`;
   }
 
   private updateTick(): void {
@@ -57,9 +71,19 @@ export class HUD {
   private updateSelection(): void {
     const selected = this.getSelectedEntities();
 
+    const buildCat = this.input.getBuildMenuCategory();
+    if (buildCat !== null) {
+      this.renderBuildMenu(buildCat);
+      return;
+    }
+    if (this.input.getPlacingBuilding() !== null) {
+      this.renderPlacementInfo();
+      return;
+    }
+
     if (selected.length === 0) {
       this.nameEl.textContent = 'No selection';
-      this.statsEl.textContent = '';
+      this.statsEl.innerHTML = '';
       this.clearActionPanel();
       return;
     }
@@ -86,23 +110,31 @@ export class HUD {
     const factionLabel = !isOwn && owner ? ` (${owner.faction})` : '';
     this.nameEl.textContent = name + factionLabel;
 
-    const stats: string[] = [];
+    let statsHtml = '';
     if (health) {
-      stats.push(`HP: ${health.current}/${health.max}`);
+      const ratio = health.current / health.max;
+      statsHtml += `<div style="font-size:12px;color:#a0a0c0;margin-bottom:2px;">HP: ${health.current}/${health.max}</div>`;
+      statsHtml += `<div class="hp-bar-container"><div class="hp-bar-fill" style="width:${ratio * 100}%;background:${hpBarColor(ratio)};"></div></div>`;
     }
     if (combat) {
-      stats.push(`ATK: ${combat.totalAttack} | ARM: ${combat.totalArmor}`);
+      statsHtml += `<div style="font-size:11px;color:#a0a0c0;margin-top:3px;">ATK: ${combat.totalAttack} | ARM: ${combat.totalArmor} | RNG: ${Math.round(combat.attackRange / 1000)}</div>`;
     }
     if (building && !building.isComplete) {
-      stats.push(`Building: ${Math.round(building.constructionRatio * 100)}%`);
+      const pct = Math.round(building.constructionRatio * 100);
+      statsHtml += `<div style="font-size:11px;color:#a0a0c0;margin-top:3px;">Construction: ${pct}%</div>`;
+      statsHtml += `<div class="hp-bar-container"><div class="hp-bar-fill" style="width:${pct}%;background:#c8a82e;"></div></div>`;
     }
     const carrier = world.getComponent(entityId, ResourceCarrier);
     if (carrier && carrier.carrying > 0) {
-      stats.push(`Carrying: ${carrier.carrying} ${carrier.carryingType}`);
+      statsHtml += `<div style="font-size:11px;color:#a0a0c0;margin-top:3px;">Carrying: ${carrier.carrying} ${carrier.carryingType}</div>`;
     }
-    this.statsEl.textContent = stats.join(' | ');
 
-    // Action panel: order buttons for own units, production for own buildings
+    if (isOwn && production && building?.isComplete && production.queue.length > 0) {
+      statsHtml += this.renderProductionQueueHtml(production.queue, owner?.faction ?? 'humans');
+    }
+
+    this.statsEl.innerHTML = statsHtml;
+
     if (isOwn && unitType) {
       this.renderOrderButtons();
     } else if (isOwn && production && building?.isComplete) {
@@ -112,7 +144,25 @@ export class HUD {
     }
   }
 
+  private renderProductionQueueHtml(queue: ProductionQueueItem[], faction: string): string {
+    let html = '<div class="prod-queue">';
+    for (let i = 0; i < queue.length; i++) {
+      const item = queue[i];
+      const displayName = getUnitDisplayName(item.unitKind, faction as 'humans' | 'orcs');
+      const abbr = displayName.slice(0, 4);
+      if (i === 0) {
+        const pct = Math.round(((item.totalTicks - item.ticksRemaining) / item.totalTicks) * 100);
+        html += `<div class="prod-queue-item"><div class="prod-queue-progress" style="width:${pct}%"></div>${abbr}</div>`;
+      } else {
+        html += `<div class="prod-queue-item">${abbr}</div>`;
+      }
+    }
+    html += '</div>';
+    return html;
+  }
+
   private updateMultiSelection(selected: EntityId[]): void {
+    const world = this.game.world;
     const ownCount = selected.filter(id => this.game.isOwnedByLocal(id)).length;
     const totalCount = selected.length;
 
@@ -121,9 +171,30 @@ export class HUD {
     } else {
       this.nameEl.textContent = `${totalCount} selected (${ownCount} own)`;
     }
-    this.statsEl.textContent = '';
 
-    // Show order buttons for multi-selection (intersection)
+    let gridHtml = '<div class="multi-select-grid">';
+    const maxDisplay = Math.min(selected.length, 12);
+    for (let i = 0; i < maxDisplay; i++) {
+      const eid = selected[i];
+      const unitType = world.getComponent(eid, UnitType);
+      const building = world.getComponent(eid, Building);
+      const health = world.getComponent(eid, Health);
+      const label = building?.name ?? unitType?.name ?? '?';
+      const abbr = label.length > 6 ? label.slice(0, 6) : label;
+
+      let hpHtml = '';
+      if (health) {
+        const ratio = health.current / health.max;
+        hpHtml = `<div class="hp-bar-container"><div class="hp-bar-fill" style="width:${ratio * 100}%;background:${hpBarColor(ratio)};"></div></div>`;
+      }
+      gridHtml += `<div class="multi-select-unit"><span class="multi-select-label">${abbr}</span>${hpHtml}</div>`;
+    }
+    if (selected.length > maxDisplay) {
+      gridHtml += `<div class="multi-select-unit"><span class="multi-select-label">+${selected.length - maxDisplay}</span></div>`;
+    }
+    gridHtml += '</div>';
+    this.statsEl.innerHTML = gridHtml;
+
     if (ownCount > 0) {
       this.renderOrderButtons();
     } else {
@@ -137,15 +208,13 @@ export class HUD {
     const orders = this.input.getCurrentOrders();
     const activeOrder = this.input.getActiveOrder();
 
-    // Build a key to detect if we need to rebuild DOM
-    const orderKey = orders.map(o => o.id).join(',') + '|' + (activeOrder ?? '');
+    const panelKey = 'orders:' + orders.map(o => o.id).join(',') + '|' + (activeOrder ?? '');
 
-    if (orderKey === this.lastOrderKey) {
-      // Just update highlight state without rebuilding
+    if (panelKey === this.lastPanelKey) {
       this.updateOrderHighlight(activeOrder);
       return;
     }
-    this.lastOrderKey = orderKey;
+    this.lastPanelKey = panelKey;
 
     this.actionPanel.innerHTML = '';
 
@@ -178,25 +247,87 @@ export class HUD {
     }
   }
 
+  // ---- Build submenu ----
+
+  private renderBuildMenu(category: 'basic' | 'advanced'): void {
+    const buildings = this.input.getAvailableBuildings(category);
+    const panelKey = `build:${category}:${buildings.join(',')}`;
+    if (panelKey === this.lastPanelKey) return;
+    this.lastPanelKey = panelKey;
+
+    this.nameEl.textContent = category === 'basic' ? 'Build' : 'Build Advanced';
+    this.statsEl.textContent = 'Select a building to place (Esc to cancel)';
+
+    this.actionPanel.innerHTML = '';
+
+    for (let i = 0; i < buildings.length; i++) {
+      const kind = buildings[i];
+      const data = BUILDING_DATA[kind];
+      const btn = document.createElement('button');
+      btn.className = 'action-btn';
+      btn.innerHTML = `<span class="order-hotkey">${i + 1}</span><span class="order-name">${data.name}</span><span class="order-hotkey">${data.cost.gold}g ${data.cost.lumber}l</span>`;
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.input.selectBuildingToPlace(kind);
+      });
+      this.actionPanel.appendChild(btn);
+    }
+  }
+
+  // ---- Placement info ----
+
+  private renderPlacementInfo(): void {
+    const kind = this.input.getPlacingBuilding()!;
+    const data = BUILDING_DATA[kind];
+    const panelKey = `place:${kind}`;
+    if (panelKey === this.lastPanelKey) return;
+    this.lastPanelKey = panelKey;
+
+    this.nameEl.textContent = `Placing ${data.name}`;
+    this.statsEl.textContent = 'Click to place, right-click or Esc to cancel';
+    this.actionPanel.innerHTML = '';
+  }
+
+  // ---- Production buttons ----
+
   private renderProductionButtons(entityId: EntityId, production: { canProduce: string[] }): void {
-    this.lastOrderKey = '';
+    const owner = this.game.world.getComponent(entityId, Owner);
+    const faction = owner?.faction ?? 'humans';
+    const ownedKinds = this.game.getOwnedBuildingKinds(owner?.playerId ?? this.game.localPlayerId);
+
+    const panelKey = `prod:${entityId}:${production.canProduce.join(',')}`;
+    if (panelKey === this.lastPanelKey) return;
+    this.lastPanelKey = panelKey;
+
     this.actionPanel.innerHTML = '';
 
     for (let i = 0; i < production.canProduce.length; i++) {
-      const unitKind = production.canProduce[i];
+      const unitKind = production.canProduce[i] as import('@warcraft-web/shared').UnitKind;
+      const unitData = UNIT_DATA[unitKind];
+      if (!unitData) continue;
+
+      if (unitData.requires.length > 0) {
+        let met = true;
+        for (const group of unitData.requires) {
+          if (!group.some(k => ownedKinds.has(k))) { met = false; break; }
+        }
+        if (!met) continue;
+      }
+
+      const displayName = getUnitDisplayName(unitKind, faction);
       const btn = document.createElement('button');
       btn.className = 'action-btn';
-      btn.innerHTML = `<span class="order-hotkey">${i + 1}</span><span class="order-name">${unitKind.replace('_', ' ')}</span>`;
+      btn.innerHTML = `<span class="order-hotkey">${i + 1}</span><span class="order-name">${displayName}</span><span class="order-hotkey">${unitData.cost.gold}g ${unitData.cost.lumber}l</span>`;
       btn.addEventListener('click', () => {
-        this.game.queueProduction(entityId, unitKind as any);
+        this.game.queueProduction(entityId, unitKind);
       });
       this.actionPanel.appendChild(btn);
     }
   }
 
   private clearActionPanel(): void {
-    if (this.lastOrderKey !== '') {
-      this.lastOrderKey = '';
+    if (this.lastPanelKey !== '') {
+      this.lastPanelKey = '';
       this.actionPanel.innerHTML = '';
     }
   }

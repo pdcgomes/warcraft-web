@@ -8,6 +8,7 @@ import type { UnitKind } from '../components/UnitType.js';
 import type { Point } from '../math/Point.js';
 import type { EntityId } from '../ecs/Entity.js';
 import type { GameEventLog } from '../game/GameEventLog.js';
+import { getUnitDisplayName } from '../data/UnitData.js';
 
 /**
  * Callback for creating units when production completes.
@@ -20,21 +21,6 @@ export type UnitSpawnCallback = (
   playerId: number,
   faction: 'humans' | 'orcs',
 ) => EntityId | null;
-
-/** Human-readable labels for unit kinds. */
-const UNIT_LABELS: Record<UnitKind, string> = {
-  worker: 'Worker',
-  footman: 'Footman',
-  archer: 'Archer',
-  knight: 'Knight',
-  catapult: 'Catapult',
-  ballista: 'Ballista',
-  cleric: 'Cleric',
-  shaman: 'Shaman',
-  grunt: 'Grunt',
-  troll_axethrower: 'Troll Axethrower',
-  raider: 'Raider',
-};
 
 /**
  * Ticks building production queues and spawns completed units.
@@ -78,7 +64,7 @@ export class ProductionSystem extends System {
 
         if (this.spawnCallback) {
           const newEntity = this.spawnCallback(world, item.unitKind, spawnPos, owner.playerId, owner.faction);
-          this.emitSpawnEvent(world, entityId, building, item.unitKind, newEntity);
+          this.emitSpawnEvent(world, entityId, building, owner, item.unitKind, newEntity);
         }
       }
     }
@@ -88,12 +74,13 @@ export class ProductionSystem extends System {
     world: World,
     buildingEntity: number,
     building: Building,
+    owner: Owner,
     unitKind: UnitKind,
-    newEntity: EntityId | null,
+    _newEntity: EntityId | null,
   ): void {
     if (!this.eventLog) return;
 
-    const unitLabel = UNIT_LABELS[unitKind] ?? unitKind.replace(/_/g, ' ');
+    const unitLabel = getUnitDisplayName(unitKind, owner.faction);
     this.eventLog.push(
       'training_complete',
       { key: `entity:${buildingEntity}`, label: building.name },

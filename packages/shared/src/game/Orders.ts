@@ -1,4 +1,5 @@
 import type { UnitKind } from '../components/UnitType.js';
+import { UNIT_DATA } from '../data/UnitData.js';
 
 /**
  * All possible order identifiers.
@@ -41,23 +42,14 @@ export const ORDER_DEFINITIONS: Record<OrderId, OrderDefinition> = {
   build_advanced: { id: 'build_advanced', name: 'Build+',  targeting: 'submenu' },
 };
 
-/**
- * Orders available per unit kind, in command-card display order.
- * The array index determines the button slot (and hotkey 1-9).
- */
-export const UNIT_ORDERS: Record<UnitKind, OrderId[]> = {
-  worker:            ['move', 'stop', 'attack', 'gather', 'repair', 'build', 'build_advanced'],
-  footman:           ['move', 'stop', 'attack', 'patrol', 'hold_position'],
-  grunt:             ['move', 'stop', 'attack', 'patrol', 'hold_position'],
-  archer:            ['move', 'stop', 'attack', 'patrol', 'hold_position'],
-  troll_axethrower:  ['move', 'stop', 'attack', 'patrol', 'hold_position'],
-  knight:            ['move', 'stop', 'attack', 'patrol', 'hold_position'],
-  raider:            ['move', 'stop', 'attack', 'patrol', 'hold_position'],
-  catapult:          ['move', 'stop', 'attack', 'patrol', 'hold_position'],
-  ballista:          ['move', 'stop', 'attack', 'patrol', 'hold_position'],
-  cleric:            ['move', 'stop', 'attack', 'patrol', 'hold_position'],
-  shaman:            ['move', 'stop', 'attack', 'patrol', 'hold_position'],
-};
+/** Orders available per unit kind, derived from UNIT_DATA. */
+export const UNIT_ORDERS: Record<UnitKind, readonly OrderId[]> = (() => {
+  const result = {} as Record<UnitKind, readonly OrderId[]>;
+  for (const [kind, data] of Object.entries(UNIT_DATA) as [UnitKind, typeof UNIT_DATA[UnitKind]][]) {
+    result[kind] = data.orders;
+  }
+  return result;
+})();
 
 /**
  * Get the intersection of available orders for a set of unit kinds.
@@ -71,7 +63,6 @@ export function getAvailableOrders(unitKinds: UnitKind[]): OrderDefinition[] {
     return firstOrders.map(id => ORDER_DEFINITIONS[id]);
   }
 
-  // Build intersection: keep only orders present in ALL unit kinds
   const otherSets = unitKinds.slice(1).map(kind => new Set(UNIT_ORDERS[kind]));
   const common = firstOrders.filter(id => otherSets.every(set => set.has(id)));
 

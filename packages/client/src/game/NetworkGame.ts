@@ -1,44 +1,41 @@
 import {
-  World, Position, Movement, Production, Health, Owner, Building,
+  World, Position, Movement, Production, Health, Owner, Building, Combat,
   MovementSystem, PatrolSystem, CombatSystem, ResourceGatheringSystem,
   ProductionSystem, BuildingConstructionSystem, CollisionSystem,
   RepairSystem, DeathCleanupSystem,
   GameMap, generateStarterMap, toFixed, tileToScreen,
   PlayerResources, GameEventLog, FogOfWar,
   UNIT_DATA, BUILDING_DATA, meetsPrerequisites,
-  Combat,
 } from '@warcraft-web/shared';
-import type { EntityId, UnitKind, FactionId, BuildingKind, Point } from '@warcraft-web/shared';
+import type {
+  EntityId, UnitKind, FactionId, BuildingKind, Point,
+  ServerMessage, ServerTickMessage, ProtocolGameCommand,
+} from '@warcraft-web/shared';
 import { EntityFactory } from './EntityFactory.js';
 
 const TICK_MS = 100;
 
 /**
- * Runs a local single-player game session.
- * Creates the world, registers systems, spawns initial entities, and runs the game loop.
+ * Multiplayer game session that communicates with a server via WebSocket.
+ * Instead of self-ticking, it receives tick messages from the server
+ * and applies commands from all players deterministically.
  */
-export class LocalGame {
+export class NetworkGame {
   readonly world: World = new World();
   gameMap!: GameMap;
 
-  /** The player ID controlled by this client. */
-  readonly localPlayerId: number = 1;
-  readonly localFaction: FactionId = 'humans';
+  readonly localPlayerId: number;
+  readonly localFaction: FactionId;
 
-  /** World-pixel position of the local player's spawn (for initial camera). */
   spawnScreen: Point = { x: 0, y: 0 };
-
-  /** Shared player resources accessible by systems and UI. */
   readonly playerResources: PlayerResources = new PlayerResources();
-
-  /** Game event log for the chat-like message feed. */
   readonly eventLog: GameEventLog = new GameEventLog();
-
-  /** Fog of war for the local player. */
   fog!: FogOfWar;
 
-  /** Game-over state: null while playing, or the winning player's ID. */
-  winner: number | null = null;
+  private readonly ws: WebSocket;
+
+  /** Pending commands for the current tick (queued by local input, sent to server). */
+  private pendingCommands: ProtocolGameCommand[] = [];
 
   private movementSystem!: MovementSystem;
   private patrolSystem!: PatrolSystem;
@@ -49,6 +46,28 @@ export class LocalGame {
   private buildingSystem!: BuildingConstructionSystem;
   private repairSystem!: RepairSystem;
   private deathSystem!: DeathCleanupSystem;
+
+  /** Fires when a server tick message is processed (so the game loop can render). */
+  onTick: (() => void) | null = null;
+
+  constructor(
+    playerId: number,
+    faction: FactionId,
+    ws: WebSocket,
+  ) {
+    this.localPlayerId = playerId;
+    this.localFaction = faction;
+    this.ws = ws;
+
+    this.ws.addEventListener('message', (ev) => {
+      const msg = JSON.parse(ev.data) as ServerMessage;
+      if (msg.type === 'tick') {
+        this.applyServerTick(msg);
+      } else if (msg.type === 'desync') {
+        console.error(`DESYNC at tick ${msg.tick}! Expected checksum: ${msg.expectedChecksum}`);
+      }
+    });
+  }
 
   init(): void {
     const generated = generateStarterMap(64, 64);
@@ -91,7 +110,6 @@ export class LocalGame {
     this.playerResources.get(2).gold = 400;
     this.playerResources.get(2).lumber = 200;
 
-    // Spawn resource nodes
     for (const spawn of generated.resourceSpawns) {
       EntityFactory.createResource(
         this.world,
@@ -101,91 +119,64 @@ export class LocalGame {
       );
     }
 
-    // Spawn Player 1 (Humans) - top-left
+    // Player 1 (Humans)
     const p1 = generated.playerSpawns[0].pos;
-    EntityFactory.createBuilding(
-      this.world, 'town_hall',
-      { x: toFixed(p1.x), y: toFixed(p1.y) },
-      1, 'humans', true,
-    );
+    EntityFactory.createBuilding(this.world, 'town_hall', { x: toFixed(p1.x), y: toFixed(p1.y) }, 1, 'humans', true);
     EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p1.x + 1), y: toFixed(p1.y + 4) }, 1, 'humans');
     EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p1.x + 2), y: toFixed(p1.y + 4) }, 1, 'humans');
     EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p1.x + 3), y: toFixed(p1.y + 4) }, 1, 'humans');
     EntityFactory.createUnit(this.world, 'footman', { x: toFixed(p1.x - 2), y: toFixed(p1.y + 1) }, 1, 'humans');
     EntityFactory.createUnit(this.world, 'footman', { x: toFixed(p1.x - 2), y: toFixed(p1.y + 2) }, 1, 'humans');
 
-    // Spawn Player 2 (Orcs) - bottom-right
+    // Player 2 (Orcs)
     const p2 = generated.playerSpawns[1].pos;
-    EntityFactory.createBuilding(
-      this.world, 'great_hall',
-      { x: toFixed(p2.x), y: toFixed(p2.y) },
-      2, 'orcs', true,
-    );
+    EntityFactory.createBuilding(this.world, 'great_hall', { x: toFixed(p2.x), y: toFixed(p2.y) }, 2, 'orcs', true);
     EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p2.x + 1), y: toFixed(p2.y - 2) }, 2, 'orcs');
     EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p2.x + 2), y: toFixed(p2.y - 2) }, 2, 'orcs');
     EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p2.x + 3), y: toFixed(p2.y - 2) }, 2, 'orcs');
     EntityFactory.createUnit(this.world, 'grunt', { x: toFixed(p2.x + 4), y: toFixed(p2.y + 1) }, 2, 'orcs');
     EntityFactory.createUnit(this.world, 'grunt', { x: toFixed(p2.x + 4), y: toFixed(p2.y + 2) }, 2, 'orcs');
 
-    this.spawnScreen = tileToScreen({ x: p1.x + 1, y: p1.y + 1 });
+    // Center camera on own player spawn
+    const spawnIdx = this.localPlayerId === 1 ? 0 : 1;
+    const sp = generated.playerSpawns[spawnIdx].pos;
+    this.spawnScreen = tileToScreen({ x: sp.x + 1, y: sp.y + 1 });
 
     this.fog = new FogOfWar(this.gameMap.width, this.gameMap.height);
-
     this.recalculateSupply();
     this.updateFog();
   }
 
-  /** Advance one simulation tick. */
-  tick(): void {
-    if (this.winner !== null) return;
+  /** Queue a command to be sent to the server on the next tick. */
+  queueCommand(cmd: ProtocolGameCommand): void {
+    this.pendingCommands.push(cmd);
+  }
+
+  /** Send pending commands to the server and clear. */
+  flushCommands(): void {
+    if (this.pendingCommands.length > 0 && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
+        type: 'command',
+        tick: this.world.tick,
+        commands: this.pendingCommands,
+      }));
+      this.pendingCommands = [];
+    }
+  }
+
+  private applyServerTick(msg: ServerTickMessage): void {
+    // Apply all player commands for this tick
+    // (In a full implementation, commands would drive the simulation deterministically.)
+    // For now, the game advances by one tick and players rely on local state.
     this.world.step(TICK_MS);
     this.updateFog();
-    this.checkVictory();
+    this.onTick?.();
   }
 
-  /** Check if a player has lost all buildings. */
-  private checkVictory(): void {
-    const buildings = this.world.query(Building.type, Owner.type);
-    const playerHasBuildings = new Set<number>();
-
-    for (const eid of buildings) {
-      const owner = this.world.getComponent(eid, Owner)!;
-      if (owner.playerId > 0) {
-        playerHasBuildings.add(owner.playerId);
-      }
-    }
-
-    if (!playerHasBuildings.has(1) && playerHasBuildings.has(2)) {
-      this.winner = 2;
-    } else if (!playerHasBuildings.has(2) && playerHasBuildings.has(1)) {
-      this.winner = 1;
-    }
-  }
-
-  /** Update fog of war visibility based on owned entities' sight ranges. */
-  private updateFog(): void {
-    this.fog.clearVisible();
-
-    const entities = this.world.query(Position.type, Owner.type);
-    for (const eid of entities) {
-      const owner = this.world.getComponent(eid, Owner)!;
-      if (owner.playerId !== this.localPlayerId) continue;
-
-      const pos = this.world.getComponent(eid, Position)!;
-      const combat = this.world.getComponent(eid, Combat);
-
-      const sightRange = combat ? combat.sightRange : 4000;
-      const radiusTiles = sightRange / 1000;
-
-      this.fog.revealCircle(pos.tileX, pos.tileY, radiusTiles);
-    }
-  }
-
-  /** Queue unit production at a building. */
+  /** Queue unit production (same checks as LocalGame). */
   queueProduction(buildingEntity: EntityId, unitKind: UnitKind): void {
     const production = this.world.getComponent(buildingEntity, Production);
     if (!production) return;
-
     if (production.queue.length >= production.maxQueueSize) return;
     if (!production.canProduce.includes(unitKind)) return;
 
@@ -193,18 +184,11 @@ export class LocalGame {
     if (!owner) return;
 
     const unitData = UNIT_DATA[unitKind];
-
-    // Check unit prerequisites
     const ownedKinds = this.getOwnedBuildingKinds(owner.playerId);
     if (!meetsPrerequisites(unitData.requires, ownedKinds)) return;
-
-    // Check affordability
     if (!this.playerResources.canAfford(owner.playerId, unitData.cost)) return;
-
-    // Check supply
     if (!this.playerResources.hasSupply(owner.playerId, unitData.supply)) return;
 
-    // Deduct resources upfront
     this.playerResources.deduct(owner.playerId, unitData.cost);
 
     production.queue.push({
@@ -214,93 +198,75 @@ export class LocalGame {
     });
   }
 
-  /** Cancel the last item in a building's production queue and refund its cost. */
-  cancelProduction(buildingEntity: EntityId): void {
-    const production = this.world.getComponent(buildingEntity, Production);
-    if (!production || production.queue.length === 0) return;
-
-    const owner = this.world.getComponent(buildingEntity, Owner);
-    if (!owner) return;
-
-    const item = production.queue.pop()!;
-    const unitData = UNIT_DATA[item.unitKind];
-    this.playerResources.refund(owner.playerId, unitData.cost);
-  }
-
-  /** Place a new building on the map (incomplete, needs worker construction). */
   placeBuilding(kind: BuildingKind, tileX: number, tileY: number): EntityId {
     const data = BUILDING_DATA[kind];
-
-    // Mark the area as unbuildable (set terrain to Stone so nothing else can overlap)
     for (let dy = 0; dy < data.tileHeight; dy++) {
       for (let dx = 0; dx < data.tileWidth; dx++) {
-        this.gameMap.setTerrain({ x: tileX + dx, y: tileY + dy }, 4 /* TerrainType.Stone */);
+        this.gameMap.setTerrain({ x: tileX + dx, y: tileY + dy }, 4);
       }
     }
-
     const entity = EntityFactory.createBuilding(
       this.world, kind,
       { x: toFixed(tileX), y: toFixed(tileY) },
-      this.localPlayerId, this.localFaction,
-      false,
+      this.localPlayerId, this.localFaction, false,
     );
-
     this.recalculateSupply();
     return entity;
   }
 
-  /** Get player resources from the shared PlayerResources. */
   getPlayerResources(playerId: number): { gold: number; lumber: number } {
     return this.playerResources.get(playerId);
   }
 
-  /** Whether the given entity belongs to the local player. */
   isOwnedByLocal(entityId: EntityId): boolean {
     const owner = this.world.getComponent(entityId, Owner);
     return owner !== undefined && owner.playerId === this.localPlayerId;
   }
 
-  /** Get the set of completed building kinds owned by a player. */
   getOwnedBuildingKinds(playerId: number): Set<BuildingKind> {
     const entities = this.world.query(Building.type, Owner.type);
     const kinds = new Set<BuildingKind>();
     for (const eid of entities) {
       const building = this.world.getComponent(eid, Building)!;
       const owner = this.world.getComponent(eid, Owner)!;
-      if (owner.playerId === playerId && building.isComplete) {
-        kinds.add(building.kind);
-      }
+      if (owner.playerId === playerId && building.isComplete) kinds.add(building.kind);
     }
     return kinds;
   }
 
-  /** Recalculate supply cap and used for all players based on current world state. */
   recalculateSupply(): void {
     for (const pid of [1, 2]) {
       const s = this.playerResources.getSupply(pid);
       s.cap = 0;
       s.used = 0;
     }
-
-    // Sum supply provided by all complete buildings
     const buildings = this.world.query(Building.type, Owner.type);
     for (const eid of buildings) {
       const building = this.world.getComponent(eid, Building)!;
       const owner = this.world.getComponent(eid, Owner)!;
       if (building.isComplete && owner.playerId > 0) {
-        const s = this.playerResources.getSupply(owner.playerId);
-        s.cap += building.supplyProvided;
+        this.playerResources.getSupply(owner.playerId).cap += building.supplyProvided;
       }
     }
-
-    // Count supply used by all units
     const units = this.world.query('UnitType', Owner.type);
     for (const eid of units) {
       const owner = this.world.getComponent(eid, Owner)!;
       if (owner.playerId > 0) {
-        const s = this.playerResources.getSupply(owner.playerId);
-        s.used += 1;
+        this.playerResources.getSupply(owner.playerId).used += 1;
       }
+    }
+  }
+
+  private updateFog(): void {
+    this.fog.clearVisible();
+    const entities = this.world.query(Position.type, Owner.type);
+    for (const eid of entities) {
+      const owner = this.world.getComponent(eid, Owner)!;
+      if (owner.playerId !== this.localPlayerId) continue;
+      const pos = this.world.getComponent(eid, Position)!;
+      const combat = this.world.getComponent(eid, Combat);
+      const sightRange = combat ? combat.sightRange : 4000;
+      this.fog.revealCircle(pos.tileX, pos.tileY, sightRange / 1000);
     }
   }
 }

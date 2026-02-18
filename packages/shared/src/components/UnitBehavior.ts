@@ -12,7 +12,9 @@ export type BehaviorState =
   | 'attacking'
   | 'gathering'
   | 'patrolling'
-  | 'holding';
+  | 'holding'
+  | 'constructing'
+  | 'repairing';
 
 export class UnitBehavior implements Component {
   static readonly type = 'UnitBehavior' as const;
@@ -36,6 +38,12 @@ export class UnitBehavior implements Component {
 
   /** Whether currently heading toward the target (true) or back to origin (false). */
   patrolForward: boolean = true;
+
+  /** Entity ID of the building this worker is constructing, or null. */
+  constructingTarget: number | null = null;
+
+  /** Entity ID of the building this worker is repairing, or null. */
+  repairTarget: number | null = null;
 
   constructor(state: BehaviorState = 'idle') {
     this.state = state;
