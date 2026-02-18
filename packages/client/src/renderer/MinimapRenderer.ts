@@ -1,5 +1,9 @@
-import { TERRAIN_DATA, Position, Owner, Building } from '@warcraft-web/shared';
+import {
+  TERRAIN_DATA, Position, Owner, Building,
+  screenToTile, tileToScreen,
+} from '@warcraft-web/shared';
 import type { LocalGame } from '../game/LocalGame.js';
+import type { GameRenderer } from './GameRenderer.js';
 
 const PLAYER_MINIMAP_COLORS: Record<number, string> = {
   0: '#888888',
@@ -8,17 +12,25 @@ const PLAYER_MINIMAP_COLORS: Record<number, string> = {
 };
 
 /**
- * Renders a small overview map showing terrain and entity positions.
+ * Renders a small overview map showing terrain, entity positions,
+ * and the camera viewport rectangle. Supports click/drag to pan the camera.
  */
 export class MinimapRenderer {
   private readonly game: LocalGame;
+  private readonly gameRenderer: GameRenderer;
   private readonly canvas: HTMLCanvasElement;
   private readonly ctx: CanvasRenderingContext2D;
 
-  constructor(game: LocalGame) {
+  private isDragging = false;
+
+  constructor(game: LocalGame, gameRenderer: GameRenderer) {
     this.game = game;
+    this.gameRenderer = gameRenderer;
     this.canvas = document.getElementById('minimap-canvas') as HTMLCanvasElement;
     this.ctx = this.canvas.getContext('2d')!;
+    this.canvas.style.cursor = 'crosshair';
+
+    this.setupMouse();
   }
 
   render(): void {
@@ -29,6 +41,7 @@ export class MinimapRenderer {
     const scaleX = canvas.width / map.width;
     const scaleY = canvas.height / map.height;
 
+    // Terrain
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         const terrain = map.getTerrain({ x, y });
@@ -39,6 +52,7 @@ export class MinimapRenderer {
       }
     }
 
+    // Entities
     const world = this.game.world;
     const entities = world.query(Position.type, Owner.type);
 
@@ -56,5 +70,83 @@ export class MinimapRenderer {
         size,
       );
     }
+
+    // Viewport rectangle
+    this.drawViewport(ctx, scaleX, scaleY);
+  }
+
+  /**
+   * Draw the camera's visible area as an axis-aligned rectangle on the minimap.
+   *
+   * We project the four screen corners into tile space and take the bounding
+   * box, giving a simple rectangular indicator regardless of the isometric
+   * projection angle.
+   */
+  private drawViewport(ctx: CanvasRenderingContext2D, scaleX: number, scaleY: number): void {
+    const r = this.gameRenderer;
+    const screenW = r.app.screen.width;
+    const screenH = r.gameAreaHeight;
+
+    const corners = [
+      screenToTile(r.screenToWorld({ x: 0, y: 0 })),
+      screenToTile(r.screenToWorld({ x: screenW, y: 0 })),
+      screenToTile(r.screenToWorld({ x: screenW, y: screenH })),
+      screenToTile(r.screenToWorld({ x: 0, y: screenH })),
+    ];
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const c of corners) {
+      if (c.x < minX) minX = c.x;
+      if (c.y < minY) minY = c.y;
+      if (c.x > maxX) maxX = c.x;
+      if (c.y > maxY) maxY = c.y;
+    }
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(
+      minX * scaleX,
+      minY * scaleY,
+      (maxX - minX) * scaleX,
+      (maxY - minY) * scaleY,
+    );
+  }
+
+  // ---- Mouse interaction ----
+
+  private setupMouse(): void {
+    this.canvas.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      e.stopPropagation();
+      this.isDragging = true;
+      this.panToMinimapPos(e);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!this.isDragging) return;
+      this.panToMinimapPos(e);
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (e.button !== 0) return;
+      this.isDragging = false;
+    });
+  }
+
+  /** Convert a mouse event position to tile coords and center the camera there. */
+  private panToMinimapPos(e: MouseEvent): void {
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const map = this.game.gameMap;
+    const scaleX = this.canvas.width / map.width;
+    const scaleY = this.canvas.height / map.height;
+
+    const tileX = mx / scaleX;
+    const tileY = my / scaleY;
+
+    const worldPos = tileToScreen({ x: tileX, y: tileY });
+    this.gameRenderer.centerOn(worldPos);
   }
 }

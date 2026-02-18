@@ -49,6 +49,7 @@ export class InputManager {
   // General mouse tracking
   private lastMouseX = 0;
   private lastMouseY = 0;
+  private mouseOverCanvas = false;
 
   // ---- Order targeting state ----
   /** The order currently awaiting a target click, or null if none. */
@@ -204,6 +205,9 @@ export class InputManager {
 
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
+    canvas.addEventListener('mouseenter', () => { this.mouseOverCanvas = true; });
+    canvas.addEventListener('mouseleave', () => { this.mouseOverCanvas = false; });
+
     window.addEventListener('mousemove', (e) => {
       this.lastMouseX = e.clientX;
       this.lastMouseY = e.clientY;
@@ -219,18 +223,24 @@ export class InputManager {
   // ---- Per-frame update ----
 
   update(): void {
+    const arrowHeld =
+      this.keysDown.has('ArrowLeft') || this.keysDown.has('ArrowRight') ||
+      this.keysDown.has('ArrowUp') || this.keysDown.has('ArrowDown');
+
     if (this.keysDown.has('ArrowLeft')) this.renderer.pan(CAMERA_SCROLL_SPEED, 0);
     if (this.keysDown.has('ArrowRight')) this.renderer.pan(-CAMERA_SCROLL_SPEED, 0);
     if (this.keysDown.has('ArrowUp')) this.renderer.pan(0, CAMERA_SCROLL_SPEED);
     if (this.keysDown.has('ArrowDown')) this.renderer.pan(0, -CAMERA_SCROLL_SPEED);
 
-    const rect = this.app.canvas.getBoundingClientRect();
-    const mx = this.lastMouseX - rect.left;
-    const my = this.lastMouseY - rect.top;
-    if (mx >= 0 && mx < EDGE_SCROLL_MARGIN) this.renderer.pan(CAMERA_SCROLL_SPEED, 0);
-    if (mx > rect.width - EDGE_SCROLL_MARGIN && mx <= rect.width) this.renderer.pan(-CAMERA_SCROLL_SPEED, 0);
-    if (my >= 0 && my < EDGE_SCROLL_MARGIN) this.renderer.pan(0, CAMERA_SCROLL_SPEED);
-    if (my > rect.height - EDGE_SCROLL_MARGIN && my <= rect.height) this.renderer.pan(0, -CAMERA_SCROLL_SPEED);
+    if (this.mouseOverCanvas && !arrowHeld) {
+      const rect = this.app.canvas.getBoundingClientRect();
+      const mx = this.lastMouseX - rect.left;
+      const my = this.lastMouseY - rect.top;
+      if (mx >= 0 && mx < EDGE_SCROLL_MARGIN) this.renderer.pan(CAMERA_SCROLL_SPEED, 0);
+      if (mx > rect.width - EDGE_SCROLL_MARGIN && mx <= rect.width) this.renderer.pan(-CAMERA_SCROLL_SPEED, 0);
+      if (my >= 0 && my < EDGE_SCROLL_MARGIN) this.renderer.pan(0, CAMERA_SCROLL_SPEED);
+      if (my > rect.height - EDGE_SCROLL_MARGIN && my <= rect.height) this.renderer.pan(0, -CAMERA_SCROLL_SPEED);
+    }
 
     this.refreshCurrentOrders();
   }
