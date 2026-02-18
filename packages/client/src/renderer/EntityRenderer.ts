@@ -255,22 +255,27 @@ export class EntityRenderer {
   getEntityAtWorldPos(worldPos: Point): EntityId | null {
     const world = this.game.world;
     const entities = world.query(Position.type, Selectable.type);
-    const hitRadius = 14;
 
     let nearest: EntityId | null = null;
     let nearestDist = Infinity;
 
     for (const entityId of entities) {
       const pos = world.getComponent(entityId, Position)!;
+      const sel = world.getComponent(entityId, Selectable)!;
       const screen = tileToScreen({ x: pos.tileX, y: pos.tileY });
+
+      const halfW = sel.hitboxWidth / 2;
+      const halfH = sel.hitboxHeight / 2;
 
       const dx = worldPos.x - screen.x;
       const dy = worldPos.y - screen.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
 
-      if (dist < hitRadius && dist < nearestDist) {
-        nearestDist = dist;
-        nearest = entityId;
+      if (dx >= -halfW && dx <= halfW && dy >= -halfH && dy <= halfH) {
+        const dist = dx * dx + dy * dy;
+        if (dist < nearestDist) {
+          nearestDist = dist;
+          nearest = entityId;
+        }
       }
     }
 

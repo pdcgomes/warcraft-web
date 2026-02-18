@@ -343,14 +343,16 @@ export class InputManager {
     const tileX = Math.floor(tile.x);
     const tileY = Math.floor(tile.y);
 
-    // Check buildability
     if (!this.game.gameMap.isAreaBuildable({ x: tileX, y: tileY }, data.tileWidth, data.tileHeight)) {
+      this.game.eventLog.push('order_confirmed', { key: 'system', label: 'System' }, 'Cannot build here', this.game.world.tick);
       return;
     }
 
-    // Check affordability
     const pid = this.game.localPlayerId;
-    if (!this.game.playerResources.canAfford(pid, data.cost)) return;
+    if (!this.game.playerResources.canAfford(pid, data.cost)) {
+      this.game.eventLog.push('order_confirmed', { key: 'system', label: 'System' }, 'Not enough resources', this.game.world.tick);
+      return;
+    }
 
     // Deduct cost
     this.game.playerResources.deduct(pid, data.cost);

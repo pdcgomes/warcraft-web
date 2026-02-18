@@ -25,6 +25,7 @@ export const debugState = {
   showColliders: false,
   showBehaviorState: false,
   showUnitNames: false,
+  showBuildingNames: false,
 
   // -- Tuning --
   speedMultiplier: 1.0,

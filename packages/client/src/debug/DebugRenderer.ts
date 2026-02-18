@@ -130,13 +130,14 @@ export class DebugRenderer {
     }
   }
 
-  // ---- Unit labels (name and/or behavior state) ----
+  // ---- Entity labels (unit names, behavior state, building names) ----
 
   private drawUnitLabels(alpha: number): void {
     const showName = debugState.showUnitNames;
     const showState = debugState.showBehaviorState;
+    const showBuildings = debugState.showBuildingNames;
 
-    if (!showName && !showState) {
+    if (!showName && !showState && !showBuildings) {
       for (const [, label] of this.labels) {
         label.visible = false;
       }
@@ -144,34 +145,45 @@ export class DebugRenderer {
     }
 
     const world = this.game.world;
-    const entities = world.query(Position.type, UnitBehavior.type);
     const activeIds = new Set<EntityId>();
 
-    for (const entityId of entities) {
-      activeIds.add(entityId);
-      const pos = world.getComponent(entityId, Position)!;
-      const behavior = world.getComponent(entityId, UnitBehavior)!;
-      const ut = world.getComponent(entityId, UnitType);
-      const screen = this.interpolatedScreen(entityId, pos, alpha);
+    if (showName || showState) {
+      const units = world.query(Position.type, UnitBehavior.type);
+      for (const entityId of units) {
+        activeIds.add(entityId);
+        const pos = world.getComponent(entityId, Position)!;
+        const behavior = world.getComponent(entityId, UnitBehavior)!;
+        const ut = world.getComponent(entityId, UnitType);
+        const screen = this.interpolatedScreen(entityId, pos, alpha);
 
-      let label = this.labels.get(entityId);
-      if (!label) {
-        label = new Text({
-          text: '',
-          style: { fontSize: 8, fill: 0x00ff88, fontFamily: 'monospace', align: 'center' },
-        });
-        label.anchor.set(0.5, 1);
-        this.labelContainer.addChild(label);
-        this.labels.set(entityId, label);
+        const label = this.getOrCreateLabel(entityId);
+        const lines: string[] = [];
+        if (showName && ut) lines.push(ut.name);
+        if (showState) lines.push(behavior.state);
+        label.text = lines.join('\n');
+        label.style.fill = 0x00ff88;
+        label.x = screen.x;
+        label.y = screen.y - 32;
+        label.visible = true;
       }
+    }
 
-      const lines: string[] = [];
-      if (showName && ut) lines.push(ut.name);
-      if (showState) lines.push(behavior.state);
-      label.text = lines.join('\n');
-      label.x = screen.x;
-      label.y = screen.y - 32;
-      label.visible = true;
+    if (showBuildings) {
+      const buildings = world.query(Position.type, Building.type);
+      for (const entityId of buildings) {
+        activeIds.add(entityId);
+        const pos = world.getComponent(entityId, Position)!;
+        const building = world.getComponent(entityId, Building)!;
+        const screen = this.interpolatedScreen(entityId, pos, alpha);
+
+        const label = this.getOrCreateLabel(entityId);
+        const status = building.isComplete ? '' : ` (${Math.round(building.constructionRatio * 100)}%)`;
+        label.text = building.name + status;
+        label.style.fill = 0xc8a82e;
+        label.x = screen.x;
+        label.y = screen.y - 32;
+        label.visible = true;
+      }
     }
 
     for (const [entityId, label] of this.labels) {
@@ -181,5 +193,19 @@ export class DebugRenderer {
         this.labels.delete(entityId);
       }
     }
+  }
+
+  private getOrCreateLabel(entityId: EntityId): Text {
+    let label = this.labels.get(entityId);
+    if (!label) {
+      label = new Text({
+        text: '',
+        style: { fontSize: 8, fill: 0x00ff88, fontFamily: 'monospace', align: 'center' },
+      });
+      label.anchor.set(0.5, 1);
+      this.labelContainer.addChild(label);
+      this.labels.set(entityId, label);
+    }
+    return label;
   }
 }

@@ -319,7 +319,15 @@ export class HUD {
       btn.className = 'action-btn';
       btn.innerHTML = `<span class="order-hotkey">${i + 1}</span><span class="order-name">${displayName}</span><span class="order-hotkey">${unitData.cost.gold}g ${unitData.cost.lumber}l</span>`;
       btn.addEventListener('click', () => {
-        this.game.queueProduction(entityId, unitKind);
+        const failReason = this.game.queueProduction(entityId, unitKind);
+        if (failReason) {
+          this.game.eventLog.push(
+            'order_confirmed',
+            { key: 'system', label: 'System' },
+            failReason,
+            this.game.world.tick,
+          );
+        }
       });
       this.actionPanel.appendChild(btn);
     }
