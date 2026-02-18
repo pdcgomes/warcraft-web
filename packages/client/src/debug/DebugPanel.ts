@@ -25,9 +25,20 @@ export class DebugPanel {
       const vis = pane.addFolder({ title: 'Visualisation' });
       vis.addBinding(debugState, 'showPaths', { label: 'Paths' });
       vis.addBinding(debugState, 'showColliders', { label: 'Colliders' });
-      vis.addBinding(debugState, 'showBehaviorState', { label: 'Behavior Labels' });
-      vis.addBinding(debugState, 'showUnitNames', { label: 'Unit Names' });
-      vis.addBinding(debugState, 'showBuildingNames', { label: 'Building Names' });
+      vis.addBinding(debugState, 'showBehaviorState', { label: 'Behavior' });
+      vis.addBinding(debugState, 'showUnitNames', { label: 'Units' });
+      vis.addBinding(debugState, 'showBuildingNames', { label: 'Buildings' });
+      vis.addBinding(debugState, 'showResourceNames', { label: 'Resources' });
+
+      const visEl = (vis as unknown as { element: HTMLElement }).element;
+      if (visEl) {
+        const container = visEl.querySelector('.tp-fldv-c') as HTMLElement | null;
+        if (container) {
+          container.style.display = 'grid';
+          container.style.gridTemplateColumns = '1fr 1fr';
+          container.style.gap = '0';
+        }
+      }
 
       const tuning = pane.addFolder({ title: 'Tuning' });
       tuning.addBinding(debugState, 'speedMultiplier', {
