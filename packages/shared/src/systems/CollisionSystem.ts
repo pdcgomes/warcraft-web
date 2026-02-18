@@ -3,6 +3,7 @@ import type { World } from '../ecs/World.js';
 import { Position } from '../components/Position.js';
 import { Collider } from '../components/Collider.js';
 import { fpDistance } from '../math/FixedPoint.js';
+import { ZERO } from '../math/Point.js';
 
 /**
  * Maximum correction per tick per pair, in fixed-point units.
@@ -36,7 +37,6 @@ export class CollisionSystem extends System {
     const len = entities.length;
     if (len < 2) return;
 
-    // Accumulate corrections so iteration order doesn't bias results
     const pushX = new Float64Array(len);
     const pushY = new Float64Array(len);
 
@@ -47,13 +47,12 @@ export class CollisionSystem extends System {
       for (let j = i + 1; j < len; j++) {
         const colB = world.getComponent(entities[j], Collider)!;
 
-        // Skip static-vs-static pairs
         if (colA.isStatic && colB.isStatic) continue;
 
         const posB = world.getComponent(entities[j], Position)!;
 
         const minDist = colA.radius + colB.radius;
-        const dist = fpDistance(posA.x, posA.y, posB.x, posB.y);
+        const dist = fpDistance(posA, posB);
 
         if (dist >= minDist) continue;
 
@@ -63,31 +62,25 @@ export class CollisionSystem extends System {
         let dy: number;
 
         if (dist === 0) {
-          // Exactly overlapping: use deterministic fallback direction
           const angle = ((entities[i] * 7 + entities[j] * 13) % 628) / 100;
           dx = Math.round(Math.cos(angle) * 1000);
           dy = Math.round(Math.sin(angle) * 1000);
         } else {
-          // Direction from B toward A
           dx = posA.x - posB.x;
           dy = posA.y - posB.y;
         }
 
-        // Normalize direction to unit length (scaled by 1000 for fp precision)
-        const dirLen = fpDistance(0, 0, dx, dy) || 1;
+        const dirLen = fpDistance(ZERO, { x: dx, y: dy }) || 1;
 
         if (colA.isStatic) {
-          // Only push B (dynamic) away from A (static)
           const push = Math.min(MAX_STATIC_PUSH, overlap);
           pushX[j] -= Math.round((dx * push) / dirLen);
           pushY[j] -= Math.round((dy * push) / dirLen);
         } else if (colB.isStatic) {
-          // Only push A (dynamic) away from B (static)
           const push = Math.min(MAX_STATIC_PUSH, overlap);
           pushX[i] += Math.round((dx * push) / dirLen);
           pushY[i] += Math.round((dy * push) / dirLen);
         } else {
-          // Both dynamic: share the correction equally
           const push = Math.min(MAX_DYNAMIC_PUSH, Math.round(overlap / 2));
           const cx = Math.round((dx * push) / dirLen);
           const cy = Math.round((dy * push) / dirLen);
@@ -99,7 +92,6 @@ export class CollisionSystem extends System {
       }
     }
 
-    // Apply accumulated corrections (only to dynamic entities)
     for (let k = 0; k < len; k++) {
       if (pushX[k] === 0 && pushY[k] === 0) continue;
       const col = world.getComponent(entities[k], Collider)!;

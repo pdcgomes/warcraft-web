@@ -29,10 +29,9 @@ export class MinimapRenderer {
     const scaleX = canvas.width / map.width;
     const scaleY = canvas.height / map.height;
 
-    // Draw terrain
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
-        const terrain = map.getTerrain(x, y);
+        const terrain = map.getTerrain({ x, y });
         const info = TERRAIN_DATA[terrain];
         const color = '#' + info.color.toString(16).padStart(6, '0');
         ctx.fillStyle = color;
@@ -40,7 +39,6 @@ export class MinimapRenderer {
       }
     }
 
-    // Draw entities
     const world = this.game.world;
     const entities = world.query(Position.type, Owner.type);
 

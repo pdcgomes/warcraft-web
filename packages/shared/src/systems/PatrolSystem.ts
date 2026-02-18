@@ -5,6 +5,7 @@ import { Movement } from '../components/Movement.js';
 import { Combat } from '../components/Combat.js';
 import { UnitBehavior } from '../components/UnitBehavior.js';
 import { fpDistance } from '../math/FixedPoint.js';
+import type { Point } from '../math/Point.js';
 
 /** Distance at which a patrol waypoint is considered reached. */
 const PATROL_ARRIVE_DIST = 300;
@@ -35,39 +36,28 @@ export class PatrolSystem extends System {
       const behavior = world.getComponent(entityId, UnitBehavior)!;
       if (behavior.state !== 'patrolling') continue;
 
-      // If currently fighting, let CombatSystem drive movement
       const combat = world.getComponent(entityId, Combat);
       if (combat && combat.targetEntity !== null) continue;
 
       const pos = world.getComponent(entityId, Position)!;
       const mov = world.getComponent(entityId, Movement)!;
 
-      // If already moving, let MovementSystem consume the path
       if (mov.isMoving) continue;
 
-      // Determine current waypoint
-      let waypointX: number;
-      let waypointY: number;
+      let waypoint: Point = behavior.patrolForward
+        ? behavior.patrolTarget
+        : behavior.patrolOrigin;
 
-      if (behavior.patrolForward) {
-        waypointX = behavior.patrolTargetX;
-        waypointY = behavior.patrolTargetY;
-      } else {
-        waypointX = behavior.patrolOriginX;
-        waypointY = behavior.patrolOriginY;
-      }
-
-      const dist = fpDistance(pos.x, pos.y, waypointX, waypointY);
+      const dist = fpDistance(pos, waypoint);
 
       if (dist <= PATROL_ARRIVE_DIST) {
-        // Reached waypoint: flip direction
         behavior.patrolForward = !behavior.patrolForward;
-        waypointX = behavior.patrolForward ? behavior.patrolTargetX : behavior.patrolOriginX;
-        waypointY = behavior.patrolForward ? behavior.patrolTargetY : behavior.patrolOriginY;
+        waypoint = behavior.patrolForward
+          ? behavior.patrolTarget
+          : behavior.patrolOrigin;
       }
 
-      // Set path toward the current waypoint
-      mov.setPath([{ x: waypointX, y: waypointY }]);
+      mov.setPath([waypoint]);
     }
   }
 }

@@ -31,7 +31,7 @@ async function main() {
 
   // Create renderer and center camera on player spawn
   const renderer = new GameRenderer(app, localGame);
-  renderer.centerOn(localGame.spawnScreenX, localGame.spawnScreenY);
+  renderer.centerOn(localGame.spawnScreen);
 
   // Create input manager
   const inputManager = new InputManager(app, renderer, localGame);

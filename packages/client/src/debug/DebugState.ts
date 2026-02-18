@@ -1,3 +1,5 @@
+import type { Point } from '@warcraft-web/shared';
+
 /**
  * Singleton debug state object.
  *
@@ -11,7 +13,7 @@
 
 export interface DebugPathEntry {
   entityId: number;
-  path: Array<{ x: number; y: number }>;
+  path: Point[];
 }
 
 export const debugState = {

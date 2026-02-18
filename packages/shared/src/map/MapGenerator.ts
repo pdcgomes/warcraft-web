@@ -1,5 +1,6 @@
 import { GameMap } from './GameMap.js';
 import { TerrainType } from './Terrain.js';
+import type { Point } from '../math/Point.js';
 
 /**
  * Generates a starter map for development and gameplay.
@@ -7,15 +8,13 @@ import { TerrainType } from './Terrain.js';
  */
 
 export interface ResourceSpawn {
-  x: number;
-  y: number;
+  pos: Point;
   type: 'gold' | 'lumber';
   amount: number;
 }
 
 export interface PlayerSpawn {
-  x: number;
-  y: number;
+  pos: Point;
 }
 
 export interface GeneratedMap {
@@ -36,12 +35,11 @@ export function generateStarterMap(width: number = 64, height: number = 64): Gen
   // Add dirt paths from corners toward center
   for (let i = 0; i < width; i++) {
     const cx = Math.floor(width / 2);
-    const cy = Math.floor(height / 2);
 
     // Diagonal paths
     if (i < cx) {
-      setArea(map, i, i, 2, 2, TerrainType.Dirt);
-      setArea(map, width - 1 - i, height - 1 - i, 2, 2, TerrainType.Dirt);
+      setArea(map, { x: i, y: i }, 2, 2, TerrainType.Dirt);
+      setArea(map, { x: width - 1 - i, y: height - 1 - i }, 2, 2, TerrainType.Dirt);
     }
   }
 
@@ -51,7 +49,7 @@ export function generateStarterMap(width: number = 64, height: number = 64): Gen
   for (let dy = -4; dy <= 4; dy++) {
     for (let dx = -5; dx <= 5; dx++) {
       if (dx * dx + dy * dy <= 20) {
-        map.setTerrain(cx + dx, cy + dy, TerrainType.Water);
+        map.setTerrain({ x: cx + dx, y: cy + dy }, TerrainType.Water);
       }
     }
   }
@@ -61,10 +59,9 @@ export function generateStarterMap(width: number = 64, height: number = 64): Gen
     for (let dx = -7; dx <= 7; dx++) {
       const dist = dx * dx + dy * dy;
       if (dist > 20 && dist <= 36) {
-        const tx = cx + dx;
-        const ty = cy + dy;
-        if (map.getTerrain(tx, ty) === TerrainType.Grass) {
-          map.setTerrain(tx, ty, TerrainType.Sand);
+        const tp = { x: cx + dx, y: cy + dy };
+        if (map.getTerrain(tp) === TerrainType.Grass) {
+          map.setTerrain(tp, TerrainType.Sand);
         }
       }
     }
@@ -86,19 +83,16 @@ export function generateStarterMap(width: number = 64, height: number = 64): Gen
     for (let dy = -cluster.r; dy <= cluster.r; dy++) {
       for (let dx = -cluster.r; dx <= cluster.r; dx++) {
         if (dx * dx + dy * dy <= cluster.r * cluster.r) {
-          const tx = cluster.x + dx;
-          const ty = cluster.y + dy;
-          if (map.inBounds(tx, ty) && map.getTerrain(tx, ty) === TerrainType.Grass) {
-            map.setTerrain(tx, ty, TerrainType.Forest);
+          const tp = { x: cluster.x + dx, y: cluster.y + dy };
+          if (map.inBounds(tp) && map.getTerrain(tp) === TerrainType.Grass) {
+            map.setTerrain(tp, TerrainType.Forest);
           }
         }
       }
     }
 
-    // Each forest cluster is a lumber source
     resourceSpawns.push({
-      x: cluster.x,
-      y: cluster.y,
+      pos: { x: cluster.x, y: cluster.y },
       type: 'lumber',
       amount: 5000,
     });
@@ -113,17 +107,16 @@ export function generateStarterMap(width: number = 64, height: number = 64): Gen
   ];
 
   for (const mine of goldMines) {
-    // Place some stone around gold mine
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        if (map.inBounds(mine.x + dx, mine.y + dy)) {
-          map.setTerrain(mine.x + dx, mine.y + dy, TerrainType.Stone);
+        const mp = { x: mine.x + dx, y: mine.y + dy };
+        if (map.inBounds(mp)) {
+          map.setTerrain(mp, TerrainType.Stone);
         }
       }
     }
     resourceSpawns.push({
-      x: mine.x,
-      y: mine.y,
+      pos: { x: mine.x, y: mine.y },
       type: 'gold',
       amount: 10000,
     });
@@ -131,23 +124,24 @@ export function generateStarterMap(width: number = 64, height: number = 64): Gen
 
   // Player spawn areas - clear grass
   const playerSpawns: PlayerSpawn[] = [
-    { x: 3, y: 3 },
-    { x: width - 6, y: height - 6 },
+    { pos: { x: 3, y: 3 } },
+    { pos: { x: width - 6, y: height - 6 } },
   ];
 
   for (const spawn of playerSpawns) {
-    setArea(map, spawn.x - 1, spawn.y - 1, 5, 5, TerrainType.Grass);
-    setArea(map, spawn.x, spawn.y, 3, 3, TerrainType.Dirt);
+    setArea(map, { x: spawn.pos.x - 1, y: spawn.pos.y - 1 }, 5, 5, TerrainType.Grass);
+    setArea(map, spawn.pos, 3, 3, TerrainType.Dirt);
   }
 
   return { map, playerSpawns, resourceSpawns };
 }
 
-function setArea(map: GameMap, x: number, y: number, w: number, h: number, terrain: TerrainType): void {
+function setArea(map: GameMap, origin: Point, w: number, h: number, terrain: TerrainType): void {
   for (let dy = 0; dy < h; dy++) {
     for (let dx = 0; dx < w; dx++) {
-      if (map.inBounds(x + dx, y + dy)) {
-        map.setTerrain(x + dx, y + dy, terrain);
+      const p = { x: origin.x + dx, y: origin.y + dy };
+      if (map.inBounds(p)) {
+        map.setTerrain(p, terrain);
       }
     }
   }

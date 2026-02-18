@@ -1,4 +1,5 @@
 import { TerrainType, TERRAIN_DATA } from './Terrain.js';
+import type { Point } from '../math/Point.js';
 
 /**
  * A 2D tile grid representing the game world.
@@ -16,31 +17,31 @@ export class GameMap {
   }
 
   /** Check if tile coordinates are within bounds. */
-  inBounds(x: number, y: number): boolean {
-    return x >= 0 && x < this.width && y >= 0 && y < this.height;
+  inBounds(p: Point): boolean {
+    return p.x >= 0 && p.x < this.width && p.y >= 0 && p.y < this.height;
   }
 
-  /** Get terrain at tile (x, y). Returns Stone for out-of-bounds. */
-  getTerrain(x: number, y: number): TerrainType {
-    if (!this.inBounds(x, y)) return TerrainType.Stone;
-    return this.tiles[y * this.width + x];
+  /** Get terrain at tile position. Returns Stone for out-of-bounds. */
+  getTerrain(p: Point): TerrainType {
+    if (!this.inBounds(p)) return TerrainType.Stone;
+    return this.tiles[p.y * this.width + p.x];
   }
 
-  /** Set terrain at tile (x, y). */
-  setTerrain(x: number, y: number, terrain: TerrainType): void {
-    if (!this.inBounds(x, y)) return;
-    this.tiles[y * this.width + x] = terrain;
+  /** Set terrain at tile position. */
+  setTerrain(p: Point, terrain: TerrainType): void {
+    if (!this.inBounds(p)) return;
+    this.tiles[p.y * this.width + p.x] = terrain;
   }
 
   /** Whether a unit can walk on this tile. */
-  isWalkable(x: number, y: number): boolean {
-    const terrain = this.getTerrain(x, y);
+  isWalkable(p: Point): boolean {
+    const terrain = this.getTerrain(p);
     return TERRAIN_DATA[terrain].walkable;
   }
 
   /** Whether a building can be placed on this tile. */
-  isBuildable(x: number, y: number): boolean {
-    const terrain = this.getTerrain(x, y);
+  isBuildable(p: Point): boolean {
+    const terrain = this.getTerrain(p);
     return TERRAIN_DATA[terrain].buildable;
   }
 
@@ -48,10 +49,10 @@ export class GameMap {
    * Check if a rectangular area is fully walkable.
    * Used for building placement and multi-tile units.
    */
-  isAreaWalkable(x: number, y: number, w: number, h: number): boolean {
+  isAreaWalkable(origin: Point, w: number, h: number): boolean {
     for (let dy = 0; dy < h; dy++) {
       for (let dx = 0; dx < w; dx++) {
-        if (!this.isWalkable(x + dx, y + dy)) return false;
+        if (!this.isWalkable({ x: origin.x + dx, y: origin.y + dy })) return false;
       }
     }
     return true;
@@ -60,10 +61,10 @@ export class GameMap {
   /**
    * Check if a rectangular area is fully buildable.
    */
-  isAreaBuildable(x: number, y: number, w: number, h: number): boolean {
+  isAreaBuildable(origin: Point, w: number, h: number): boolean {
     for (let dy = 0; dy < h; dy++) {
       for (let dx = 0; dx < w; dx++) {
-        if (!this.isBuildable(x + dx, y + dy)) return false;
+        if (!this.isBuildable({ x: origin.x + dx, y: origin.y + dy })) return false;
       }
     }
     return true;

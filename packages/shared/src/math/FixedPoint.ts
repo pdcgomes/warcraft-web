@@ -4,6 +4,8 @@
  * All game simulation coordinates and calculations use fixed-point.
  */
 
+import type { Point } from './Point.js';
+
 export const FP_SCALE = 1000;
 
 /** Convert a floating-point number to fixed-point. */
@@ -28,9 +30,9 @@ export function fpDiv(a: number, b: number): number {
 }
 
 /** Distance squared between two fixed-point positions (avoids sqrt). */
-export function distanceSquared(x1: number, y1: number, x2: number, y2: number): number {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
+export function distanceSquared(a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
   return Math.round((dx * dx + dy * dy) / FP_SCALE);
 }
 
@@ -52,8 +54,8 @@ export function isqrt(n: number): number {
 }
 
 /** Fixed-point distance between two points. */
-export function fpDistance(x1: number, y1: number, x2: number, y2: number): number {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
+export function fpDistance(a: Point, b: Point): number {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
   return isqrt(dx * dx + dy * dy);
 }

@@ -41,25 +41,21 @@ export class MovementSystem extends System {
         continue;
       }
 
-      const dist = fpDistance(pos.x, pos.y, target.x, target.y);
+      const dist = fpDistance(pos, target);
 
       if (dist <= mov.speed) {
-        // Reached current waypoint
         pos.x = target.x;
         pos.y = target.y;
         mov.pathIndex++;
 
         if (mov.pathIndex >= mov.path.length) {
-          // Reached final destination
           mov.clearPath();
           this.onPathExhausted(world, entityId);
         }
       } else {
-        // Move toward current waypoint
         const dx = target.x - pos.x;
         const dy = target.y - pos.y;
 
-        // Normalize direction and multiply by speed (integer math)
         pos.x += Math.round((dx * mov.speed) / dist);
         pos.y += Math.round((dy * mov.speed) / dist);
       }

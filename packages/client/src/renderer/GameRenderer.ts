@@ -3,6 +3,7 @@ import { TerrainRenderer } from './TerrainRenderer.js';
 import { EntityRenderer } from './EntityRenderer.js';
 import { MinimapRenderer } from './MinimapRenderer.js';
 import type { LocalGame } from '../game/LocalGame.js';
+import type { Point } from '@warcraft-web/shared';
 
 /**
  * Manages the PixiJS stage, camera/viewport (pan, zoom).
@@ -49,35 +50,34 @@ export class GameRenderer {
   }
 
   /** Set camera to center on a world position (pixels). */
-  centerOn(worldX: number, worldY: number): void {
-    this.cameraX = -worldX + this.app.screen.width / 2;
-    this.cameraY = -worldY + this.app.screen.height / 2;
+  centerOn(world: Point): void {
+    this.cameraX = -world.x + this.app.screen.width / 2;
+    this.cameraY = -world.y + this.app.screen.height / 2;
   }
 
   /** Zoom in/out at a screen point. */
-  adjustZoom(delta: number, screenX: number, screenY: number): void {
+  adjustZoom(delta: number, screen: Point): void {
     const oldZoom = this.zoom;
     this.zoom = Math.max(this.MIN_ZOOM, Math.min(this.MAX_ZOOM, this.zoom + delta));
 
-    // Zoom toward mouse position
     const zoomFactor = this.zoom / oldZoom;
-    this.cameraX = screenX - (screenX - this.cameraX) * zoomFactor;
-    this.cameraY = screenY - (screenY - this.cameraY) * zoomFactor;
+    this.cameraX = screen.x - (screen.x - this.cameraX) * zoomFactor;
+    this.cameraY = screen.y - (screen.y - this.cameraY) * zoomFactor;
   }
 
   /** Convert screen coordinates to world coordinates. */
-  screenToWorld(screenX: number, screenY: number): { x: number; y: number } {
+  screenToWorld(screen: Point): Point {
     return {
-      x: (screenX - this.cameraX) / this.zoom,
-      y: (screenY - this.cameraY) / this.zoom,
+      x: (screen.x - this.cameraX) / this.zoom,
+      y: (screen.y - this.cameraY) / this.zoom,
     };
   }
 
   /** Convert world coordinates to screen coordinates. */
-  worldToScreen(worldX: number, worldY: number): { x: number; y: number } {
+  worldToScreen(world: Point): Point {
     return {
-      x: worldX * this.zoom + this.cameraX,
-      y: worldY * this.zoom + this.cameraY,
+      x: world.x * this.zoom + this.cameraX,
+      y: world.y * this.zoom + this.cameraY,
     };
   }
 
@@ -87,15 +87,11 @@ export class GameRenderer {
   }
 
   render(alpha: number): void {
-    // Update world container transform
     this.worldContainer.x = this.cameraX;
     this.worldContainer.y = this.cameraY;
     this.worldContainer.scale.set(this.zoom);
 
-    // Update entity sprites with interpolation
     this.entityRenderer.update(alpha);
-
-    // Update minimap
     this.minimapRenderer.render();
   }
 }

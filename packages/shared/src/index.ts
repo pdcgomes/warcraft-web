@@ -8,7 +8,6 @@ export { createEntityId, resetEntityIdCounter } from './ecs/Entity.js';
 // Components
 export { Position } from './components/Position.js';
 export { Movement } from './components/Movement.js';
-export type { PathNode } from './components/Movement.js';
 export { Health } from './components/Health.js';
 export { Combat } from './components/Combat.js';
 export type { DamageType } from './components/Combat.js';
@@ -36,6 +35,8 @@ export { GameEventLog } from './game/GameEventLog.js';
 export type { GameEvent, GameEventType, EventSender } from './game/GameEventLog.js';
 
 // Math
+export type { Point } from './math/Point.js';
+export { point, ZERO, pointAdd, pointSub, pointScale, pointEquals, pointDistSq, pointDist } from './math/Point.js';
 export { FP_SCALE, toFixed, toFloat, fpMul, fpDiv, distanceSquared, isqrt, fpDistance } from './math/FixedPoint.js';
 export {
   TILE_WIDTH, TILE_HEIGHT, TILE_WIDTH_HALF, TILE_HEIGHT_HALF,
