@@ -86,10 +86,10 @@ export class LocalGame {
       return EntityFactory.createUnit(world, unitKind, spawnPos, playerId, faction);
     });
 
-    this.playerResources.get(1).gold = 400;
-    this.playerResources.get(1).lumber = 200;
-    this.playerResources.get(2).gold = 400;
-    this.playerResources.get(2).lumber = 200;
+    this.playerResources.get(1).gold = 2000;
+    this.playerResources.get(1).lumber = 1000;
+    this.playerResources.get(2).gold = 2000;
+    this.playerResources.get(2).lumber = 1000;
 
     // Spawn resource nodes
     for (const spawn of generated.resourceSpawns) {
@@ -181,30 +181,26 @@ export class LocalGame {
     }
   }
 
-  /** Queue unit production at a building. */
-  queueProduction(buildingEntity: EntityId, unitKind: UnitKind): void {
+  /** Queue unit production at a building. Returns a failure reason string, or null on success. */
+  queueProduction(buildingEntity: EntityId, unitKind: UnitKind): string | null {
     const production = this.world.getComponent(buildingEntity, Production);
-    if (!production) return;
+    if (!production) return 'No production capability';
 
-    if (production.queue.length >= production.maxQueueSize) return;
-    if (!production.canProduce.includes(unitKind)) return;
+    if (production.queue.length >= production.maxQueueSize) return 'Queue is full';
+    if (!production.canProduce.includes(unitKind)) return 'Cannot produce this unit';
 
     const owner = this.world.getComponent(buildingEntity, Owner);
-    if (!owner) return;
+    if (!owner) return null;
 
     const unitData = UNIT_DATA[unitKind];
 
-    // Check unit prerequisites
     const ownedKinds = this.getOwnedBuildingKinds(owner.playerId);
-    if (!meetsPrerequisites(unitData.requires, ownedKinds)) return;
+    if (!meetsPrerequisites(unitData.requires, ownedKinds)) return 'Missing prerequisite buildings';
 
-    // Check affordability
-    if (!this.playerResources.canAfford(owner.playerId, unitData.cost)) return;
+    if (!this.playerResources.canAfford(owner.playerId, unitData.cost)) return 'Not enough resources';
 
-    // Check supply
-    if (!this.playerResources.hasSupply(owner.playerId, unitData.supply)) return;
+    if (!this.playerResources.hasSupply(owner.playerId, unitData.supply)) return 'Not enough supply — build farms';
 
-    // Deduct resources upfront
     this.playerResources.deduct(owner.playerId, unitData.cost);
 
     production.queue.push({
@@ -212,6 +208,7 @@ export class LocalGame {
       ticksRemaining: unitData.trainTime,
       totalTicks: unitData.trainTime,
     });
+    return null;
   }
 
   /** Cancel the last item in a building's production queue and refund its cost. */

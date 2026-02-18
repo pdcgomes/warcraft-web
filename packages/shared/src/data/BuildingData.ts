@@ -30,7 +30,7 @@ export const BUILDING_DATA: Record<BuildingKind, BuildingDataEntry> = {
   town_hall: {
     name: 'Town Hall', faction: 'humans',
     hp: 1200, tileWidth: 3, tileHeight: 3, buildTime: 200,
-    cost: { gold: 1200, lumber: 800 }, supplyProvided: 1,
+    cost: { gold: 1200, lumber: 800 }, supplyProvided: 10,
     canProduce: ['worker'],
     requires: [],
     buildCategory: 'advanced',
@@ -38,7 +38,7 @@ export const BUILDING_DATA: Record<BuildingKind, BuildingDataEntry> = {
   great_hall: {
     name: 'Great Hall', faction: 'orcs',
     hp: 1200, tileWidth: 3, tileHeight: 3, buildTime: 200,
-    cost: { gold: 1200, lumber: 800 }, supplyProvided: 1,
+    cost: { gold: 1200, lumber: 800 }, supplyProvided: 10,
     canProduce: ['worker'],
     requires: [],
     buildCategory: 'advanced',
@@ -46,7 +46,7 @@ export const BUILDING_DATA: Record<BuildingKind, BuildingDataEntry> = {
   barracks: {
     name: 'Barracks', faction: 'any',
     hp: 800, tileWidth: 3, tileHeight: 3, buildTime: 150,
-    cost: { gold: 700, lumber: 450 }, supplyProvided: 0,
+    cost: { gold: 200, lumber: 150 }, supplyProvided: 0,
     canProduce: ['footman', 'grunt', 'archer', 'troll_axethrower', 'ballista', 'catapult', 'cleric', 'shaman'],
     requires: [],
     buildCategory: 'basic',
@@ -54,7 +54,7 @@ export const BUILDING_DATA: Record<BuildingKind, BuildingDataEntry> = {
   lumber_mill: {
     name: 'Lumber Mill', faction: 'humans',
     hp: 600, tileWidth: 2, tileHeight: 2, buildTime: 100,
-    cost: { gold: 600, lumber: 450 }, supplyProvided: 0,
+    cost: { gold: 150, lumber: 100 }, supplyProvided: 0,
     canProduce: [],
     requires: [],
     buildCategory: 'basic',
@@ -62,7 +62,7 @@ export const BUILDING_DATA: Record<BuildingKind, BuildingDataEntry> = {
   war_mill: {
     name: 'War Mill', faction: 'orcs',
     hp: 600, tileWidth: 2, tileHeight: 2, buildTime: 100,
-    cost: { gold: 600, lumber: 450 }, supplyProvided: 0,
+    cost: { gold: 150, lumber: 100 }, supplyProvided: 0,
     canProduce: [],
     requires: [],
     buildCategory: 'basic',
@@ -70,7 +70,7 @@ export const BUILDING_DATA: Record<BuildingKind, BuildingDataEntry> = {
   blacksmith: {
     name: 'Blacksmith', faction: 'any',
     hp: 600, tileWidth: 2, tileHeight: 2, buildTime: 120,
-    cost: { gold: 800, lumber: 450 }, supplyProvided: 0,
+    cost: { gold: 200, lumber: 150 }, supplyProvided: 0,
     canProduce: [],
     requires: [['lumber_mill', 'war_mill']],
     buildCategory: 'advanced',
@@ -78,7 +78,7 @@ export const BUILDING_DATA: Record<BuildingKind, BuildingDataEntry> = {
   stable: {
     name: 'Stable', faction: 'humans',
     hp: 500, tileWidth: 3, tileHeight: 3, buildTime: 150,
-    cost: { gold: 1000, lumber: 300 }, supplyProvided: 0,
+    cost: { gold: 300, lumber: 150 }, supplyProvided: 0,
     canProduce: ['knight'],
     requires: [['barracks']],
     buildCategory: 'advanced',
@@ -86,7 +86,7 @@ export const BUILDING_DATA: Record<BuildingKind, BuildingDataEntry> = {
   beastiary: {
     name: 'Beastiary', faction: 'orcs',
     hp: 500, tileWidth: 3, tileHeight: 3, buildTime: 150,
-    cost: { gold: 1000, lumber: 300 }, supplyProvided: 0,
+    cost: { gold: 300, lumber: 150 }, supplyProvided: 0,
     canProduce: ['raider'],
     requires: [['barracks']],
     buildCategory: 'advanced',
@@ -94,7 +94,7 @@ export const BUILDING_DATA: Record<BuildingKind, BuildingDataEntry> = {
   farm: {
     name: 'Farm', faction: 'humans',
     hp: 400, tileWidth: 2, tileHeight: 2, buildTime: 80,
-    cost: { gold: 500, lumber: 250 }, supplyProvided: 4,
+    cost: { gold: 100, lumber: 50 }, supplyProvided: 4,
     canProduce: [],
     requires: [],
     buildCategory: 'basic',
@@ -102,7 +102,7 @@ export const BUILDING_DATA: Record<BuildingKind, BuildingDataEntry> = {
   pig_farm: {
     name: 'Pig Farm', faction: 'orcs',
     hp: 400, tileWidth: 2, tileHeight: 2, buildTime: 80,
-    cost: { gold: 500, lumber: 250 }, supplyProvided: 4,
+    cost: { gold: 100, lumber: 50 }, supplyProvided: 4,
     canProduce: [],
     requires: [],
     buildCategory: 'basic',
@@ -110,7 +110,7 @@ export const BUILDING_DATA: Record<BuildingKind, BuildingDataEntry> = {
   tower: {
     name: 'Scout Tower', faction: 'humans',
     hp: 500, tileWidth: 2, tileHeight: 2, buildTime: 100,
-    cost: { gold: 550, lumber: 200 }, supplyProvided: 0,
+    cost: { gold: 200, lumber: 100 }, supplyProvided: 0,
     canProduce: [],
     requires: [['lumber_mill']],
     buildCategory: 'advanced',
@@ -118,7 +118,7 @@ export const BUILDING_DATA: Record<BuildingKind, BuildingDataEntry> = {
   guard_tower: {
     name: 'Guard Tower', faction: 'orcs',
     hp: 500, tileWidth: 2, tileHeight: 2, buildTime: 100,
-    cost: { gold: 550, lumber: 200 }, supplyProvided: 0,
+    cost: { gold: 200, lumber: 100 }, supplyProvided: 0,
     canProduce: [],
     requires: [['war_mill']],
     buildCategory: 'advanced',

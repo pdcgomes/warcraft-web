@@ -27,6 +27,7 @@ export class DebugPanel {
       vis.addBinding(debugState, 'showColliders', { label: 'Colliders' });
       vis.addBinding(debugState, 'showBehaviorState', { label: 'Behavior Labels' });
       vis.addBinding(debugState, 'showUnitNames', { label: 'Unit Names' });
+      vis.addBinding(debugState, 'showBuildingNames', { label: 'Building Names' });
 
       const tuning = pane.addFolder({ title: 'Tuning' });
       tuning.addBinding(debugState, 'speedMultiplier', {
