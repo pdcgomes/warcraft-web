@@ -1,4 +1,6 @@
 import type { Component } from '../ecs/Component.js';
+import type { Point } from '../math/Point.js';
+import { ZERO } from '../math/Point.js';
 
 /**
  * The authoritative behavioral state for a unit.
@@ -27,12 +29,10 @@ export class UnitBehavior implements Component {
   returnState: BehaviorState | null = null;
 
   /** Patrol origin point (fixed-point). */
-  patrolOriginX: number = 0;
-  patrolOriginY: number = 0;
+  patrolOrigin: Point = ZERO;
 
   /** Patrol destination point (fixed-point). */
-  patrolTargetX: number = 0;
-  patrolTargetY: number = 0;
+  patrolTarget: Point = ZERO;
 
   /** Whether currently heading toward the target (true) or back to origin (false). */
   patrolForward: boolean = true;

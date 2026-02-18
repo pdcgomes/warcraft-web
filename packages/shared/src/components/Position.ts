@@ -1,4 +1,5 @@
 import type { Component } from '../ecs/Component.js';
+import type { Point } from '../math/Point.js';
 
 /**
  * Position in world tile coordinates.
@@ -29,8 +30,19 @@ export class Position implements Component {
     return this.y / 1000;
   }
 
-  /** Set from tile coordinates */
-  static fromTile(tileX: number, tileY: number): Position {
-    return new Position(Math.round(tileX * 1000), Math.round(tileY * 1000));
+  /** Return current position as a Point. */
+  toPoint(): Point {
+    return { x: this.x, y: this.y };
+  }
+
+  /** Set position from a Point. */
+  setFrom(p: Point): void {
+    this.x = p.x;
+    this.y = p.y;
+  }
+
+  /** Create from tile coordinates. */
+  static fromTile(tile: Point): Position {
+    return new Position(Math.round(tile.x * 1000), Math.round(tile.y * 1000));
   }
 }

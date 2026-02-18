@@ -1,5 +1,7 @@
 import type { Component } from '../ecs/Component.js';
 import type { UnitKind } from './UnitType.js';
+import type { Point } from '../math/Point.js';
+import { ZERO } from '../math/Point.js';
 
 export interface ProductionQueueItem {
   unitKind: UnitKind;
@@ -26,8 +28,7 @@ export class Production implements Component {
   maxQueueSize: number;
 
   /** Rally point for produced units (fixed-point) */
-  rallyX: number = 0;
-  rallyY: number = 0;
+  rally: Point = ZERO;
 
   constructor(canProduce: UnitKind[], maxQueueSize: number = 5) {
     this.canProduce = canProduce;

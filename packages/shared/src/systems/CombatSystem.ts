@@ -45,17 +45,14 @@ export class CombatSystem extends System {
 
       if (health.isDead) continue;
 
-      // Tick cooldown regardless of state
       if (combat.cooldownRemaining > 0) {
         combat.cooldownRemaining--;
       }
 
       const state = behavior?.state;
 
-      // Skip units in states we don't process
       if (state === 'moving' || state === 'gathering') continue;
 
-      // --- Validate current target ---
       if (combat.targetEntity !== null) {
         const targetHealth = world.getComponent(combat.targetEntity, Health);
         if (!targetHealth || targetHealth.isDead || !world.hasEntity(combat.targetEntity)) {
@@ -64,14 +61,12 @@ export class CombatSystem extends System {
         }
       }
 
-      // --- Auto-acquire ---
       if (combat.targetEntity === null) {
         this.tryAutoAcquire(world, entityId, combat, behavior, combatEntities);
       }
 
       if (combat.targetEntity === null) continue;
 
-      // --- Engage target ---
       const pos = world.getComponent(entityId, Position)!;
       const targetPos = world.getComponent(combat.targetEntity, Position);
       if (!targetPos) {
@@ -80,30 +75,24 @@ export class CombatSystem extends System {
         continue;
       }
 
-      const dist = fpDistance(pos.x, pos.y, targetPos.x, targetPos.y);
+      const dist = fpDistance(pos, targetPos);
 
       if (dist <= combat.attackRange) {
-        // In range: attack if cooldown ready
         if (combat.cooldownRemaining <= 0) {
           this.performAttack(world, combat);
         }
-        // Stop moving while attacking
         const mov = world.getComponent(entityId, Movement);
         if (mov && mov.isMoving) {
           mov.clearPath();
         }
       } else if (state === 'holding') {
-        // Holding: target moved out of range, drop it but stay holding
         combat.targetEntity = null;
       } else if (state === 'attacking') {
-        // Attacking: chase the target
         const mov = world.getComponent(entityId, Movement);
         if (mov && !mov.isMoving) {
           mov.setPath([{ x: targetPos.x, y: targetPos.y }]);
         }
       }
-      // 'patrolling' with a target: PatrolSystem pauses while we have a target.
-      // If target is out of range, we chase (same as attacking).
       else if (state === 'patrolling') {
         const mov = world.getComponent(entityId, Movement);
         if (mov && !mov.isMoving) {
@@ -113,9 +102,6 @@ export class CombatSystem extends System {
     }
   }
 
-  /**
-   * Attempt auto-acquisition based on the unit's behavioral state.
-   */
   private tryAutoAcquire(
     world: World,
     entityId: number,
@@ -126,32 +112,24 @@ export class CombatSystem extends System {
     const state = behavior?.state;
 
     if (state === 'idle' || state === 'patrolling') {
-      // Acquire within sight range
       const enemy = this.findNearestEnemy(world, entityId, candidates, combat.sightRange);
       if (enemy !== null) {
         combat.targetEntity = enemy;
         if (behavior) {
           if (state === 'patrolling') {
-            // Remember to resume patrol after combat
             behavior.returnState = 'patrolling';
           }
           behavior.state = 'attacking';
         }
       }
     } else if (state === 'holding') {
-      // Acquire within attack range only -- never chase
       const enemy = this.findNearestEnemy(world, entityId, candidates, combat.attackRange);
       if (enemy !== null) {
         combat.targetEntity = enemy;
-        // Stay 'holding' -- don't transition to 'attacking'
       }
     }
   }
 
-  /**
-   * Called when the current combat target is lost or dies.
-   * Transitions to returnState if set, otherwise idle (for attacking units).
-   */
   private onTargetLost(behavior: UnitBehavior | undefined): void {
     if (!behavior) return;
 
@@ -163,7 +141,6 @@ export class CombatSystem extends System {
         behavior.state = 'idle';
       }
     }
-    // 'holding' units stay holding when target is lost (handled in engage section)
   }
 
   private findNearestEnemy(
@@ -189,7 +166,7 @@ export class CombatSystem extends System {
       if (!candidateHealth || candidateHealth.isDead) continue;
 
       const candidatePos = world.getComponent(candidateId, Position)!;
-      const dist = fpDistance(pos.x, pos.y, candidatePos.x, candidatePos.y);
+      const dist = fpDistance(pos, candidatePos);
 
       if (dist <= maxRange && dist < nearestDist) {
         nearestDist = dist;

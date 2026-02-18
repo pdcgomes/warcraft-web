@@ -1,9 +1,6 @@
 import type { Component } from '../ecs/Component.js';
-
-export interface PathNode {
-  x: number;
-  y: number;
-}
+import type { Point } from '../math/Point.js';
+import { ZERO } from '../math/Point.js';
 
 export class Movement implements Component {
   static readonly type = 'Movement' as const;
@@ -13,14 +10,13 @@ export class Movement implements Component {
   speed: number;
 
   /** Current path to follow (in fixed-point coords) */
-  path: PathNode[] = [];
+  path: Point[] = [];
 
   /** Index of current path node being moved toward */
   pathIndex: number = 0;
 
   /** Target position in fixed-point (final destination) */
-  targetX: number = 0;
-  targetY: number = 0;
+  target: Point = ZERO;
 
   /** Whether the unit is currently moving */
   isMoving: boolean = false;
@@ -29,14 +25,12 @@ export class Movement implements Component {
     this.speed = speed;
   }
 
-  setPath(path: PathNode[]): void {
+  setPath(path: Point[]): void {
     this.path = path;
     this.pathIndex = 0;
     this.isMoving = path.length > 0;
     if (path.length > 0) {
-      const last = path[path.length - 1];
-      this.targetX = last.x;
-      this.targetY = last.y;
+      this.target = path[path.length - 1];
     }
   }
 

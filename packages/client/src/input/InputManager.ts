@@ -6,7 +6,7 @@ import {
   getAvailableOrders, ORDER_DEFINITIONS,
   screenToTile, tileToScreen, toFixed, findPath,
 } from '@warcraft-web/shared';
-import type { EntityId, OrderId, OrderDefinition, UnitKind, EventSender } from '@warcraft-web/shared';
+import type { EntityId, OrderId, OrderDefinition, UnitKind, EventSender, Point } from '@warcraft-web/shared';
 import type { GameRenderer } from '../renderer/GameRenderer.js';
 import type { LocalGame } from '../game/LocalGame.js';
 import { SelectionBox } from '../ui/SelectionBox.js';
@@ -83,11 +83,9 @@ export class InputManager {
     }
 
     if (def.targeting === 'submenu') {
-      // Build menus not yet implemented
       return;
     }
 
-    // Enter targeting mode
     this.activeOrder = orderId;
     this.onTargetingChanged?.(orderId);
   }
@@ -108,7 +106,6 @@ export class InputManager {
     window.addEventListener('keydown', (e) => {
       this.keysDown.add(e.key);
 
-      // Escape: cancel targeting or deselect
       if (e.key === 'Escape') {
         if (this.activeOrder !== null) {
           this.cancelTargeting();
@@ -118,10 +115,7 @@ export class InputManager {
         return;
       }
 
-      // Number keys 1-9: activate order by slot
       if (e.key >= '1' && e.key <= '9') {
-        // Refresh orders synchronously so they reflect the current selection,
-        // even if update() hasn't run yet this frame.
         this.refreshCurrentOrders();
         const slot = parseInt(e.key) - 1;
         if (slot < this.currentOrders.length) {
@@ -159,7 +153,6 @@ export class InputManager {
     });
 
     canvas.addEventListener('mousemove', (e) => {
-      // Left-drag: selection box (only when not in targeting mode)
       if (this.isLeftDown && this.selectionBox.active && this.activeOrder === null) {
         const dx = e.clientX - this.mouseDownX;
         const dy = e.clientY - this.mouseDownY;
@@ -169,7 +162,6 @@ export class InputManager {
         this.selectionBox.move(e.clientX, e.clientY);
       }
 
-      // Right-drag: camera pan
       if (this.isRightMouseDown) {
         const dx = e.clientX - this.rightDownX;
         const dy = e.clientY - this.rightDownY;
@@ -187,15 +179,14 @@ export class InputManager {
         this.isLeftDown = false;
 
         if (this.activeOrder !== null) {
-          // In targeting mode: execute order at click position
           this.selectionBox.end();
-          this.executeTargetedOrder(e.clientX, e.clientY);
+          this.executeTargetedOrder({ x: e.clientX, y: e.clientY });
         } else if (this.isDragging) {
           const rect = this.selectionBox.end();
           this.handleBoxSelect(rect);
         } else {
           this.selectionBox.end();
-          this.handleLeftClick(e.clientX, e.clientY, e.shiftKey);
+          this.handleLeftClick({ x: e.clientX, y: e.clientY }, e.shiftKey);
         }
         this.isDragging = false;
       } else if (e.button === 2) {
@@ -203,7 +194,7 @@ export class InputManager {
           if (this.activeOrder !== null) {
             this.cancelTargeting();
           } else {
-            this.handleRightClick(e.clientX, e.clientY);
+            this.handleRightClick({ x: e.clientX, y: e.clientY });
           }
         }
         this.isRightMouseDown = false;
@@ -221,20 +212,18 @@ export class InputManager {
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      this.renderer.adjustZoom(delta, e.clientX, e.clientY);
+      this.renderer.adjustZoom(delta, { x: e.clientX, y: e.clientY });
     }, { passive: false });
   }
 
   // ---- Per-frame update ----
 
   update(): void {
-    // Camera scrolling
     if (this.keysDown.has('ArrowLeft')) this.renderer.pan(CAMERA_SCROLL_SPEED, 0);
     if (this.keysDown.has('ArrowRight')) this.renderer.pan(-CAMERA_SCROLL_SPEED, 0);
     if (this.keysDown.has('ArrowUp')) this.renderer.pan(0, CAMERA_SCROLL_SPEED);
     if (this.keysDown.has('ArrowDown')) this.renderer.pan(0, -CAMERA_SCROLL_SPEED);
 
-    // Edge scrolling
     const rect = this.app.canvas.getBoundingClientRect();
     const mx = this.lastMouseX - rect.left;
     const my = this.lastMouseY - rect.top;
@@ -243,7 +232,6 @@ export class InputManager {
     if (my >= 0 && my < EDGE_SCROLL_MARGIN) this.renderer.pan(0, CAMERA_SCROLL_SPEED);
     if (my > rect.height - EDGE_SCROLL_MARGIN && my <= rect.height) this.renderer.pan(0, -CAMERA_SCROLL_SPEED);
 
-    // Refresh available orders for current selection
     this.refreshCurrentOrders();
   }
 
@@ -261,7 +249,6 @@ export class InputManager {
 
     this.currentOrders = getAvailableOrders(unitKinds);
 
-    // If targeting mode is active but the order is no longer available, cancel
     if (this.activeOrder !== null) {
       if (!this.currentOrders.some(o => o.id === this.activeOrder)) {
         this.cancelTargeting();
@@ -288,7 +275,7 @@ export class InputManager {
     }
   }
 
-  private executeTargetedOrder(screenX: number, screenY: number): void {
+  private executeTargetedOrder(screenPos: Point): void {
     const orderId = this.activeOrder;
     if (orderId === null) return;
 
@@ -298,14 +285,14 @@ export class InputManager {
       return;
     }
 
-    const worldPos = this.renderer.screenToWorld(screenX, screenY);
-    const targetEntity = this.renderer.entityRenderer.getEntityAtWorldPos(worldPos.x, worldPos.y);
+    const worldPos = this.renderer.screenToWorld(screenPos);
+    const targetEntity = this.renderer.entityRenderer.getEntityAtWorldPos(worldPos);
     const world = this.game.world;
 
     switch (orderId) {
       case 'move': {
-        const tile = screenToTile(worldPos.x, worldPos.y);
-        this.commandMove(units, toFixed(tile.tileX), toFixed(tile.tileY));
+        const tile = screenToTile(worldPos);
+        this.commandMove(units, { x: toFixed(tile.x), y: toFixed(tile.y) });
         break;
       }
       case 'attack': {
@@ -315,19 +302,18 @@ export class InputManager {
           if (targetHealth && targetOwner && targetOwner.playerId !== this.game.localPlayerId) {
             this.commandAttack(units, targetEntity);
           } else {
-            // Attack ground = move (attack-move TBD)
-            const tile = screenToTile(worldPos.x, worldPos.y);
-            this.commandMove(units, toFixed(tile.tileX), toFixed(tile.tileY));
+            const tile = screenToTile(worldPos);
+            this.commandMove(units, { x: toFixed(tile.x), y: toFixed(tile.y) });
           }
         } else {
-          const tile = screenToTile(worldPos.x, worldPos.y);
-          this.commandMove(units, toFixed(tile.tileX), toFixed(tile.tileY));
+          const tile = screenToTile(worldPos);
+          this.commandMove(units, { x: toFixed(tile.x), y: toFixed(tile.y) });
         }
         break;
       }
       case 'patrol': {
-        const tile = screenToTile(worldPos.x, worldPos.y);
-        this.commandPatrol(units, toFixed(tile.tileX), toFixed(tile.tileY));
+        const tile = screenToTile(worldPos);
+        this.commandPatrol(units, { x: toFixed(tile.x), y: toFixed(tile.y) });
         break;
       }
       case 'gather': {
@@ -344,11 +330,10 @@ export class InputManager {
           const targetBuilding = world.getComponent(targetEntity, Building);
           const targetOwner = world.getComponent(targetEntity, Owner);
           if (targetBuilding && targetOwner && targetOwner.playerId === this.game.localPlayerId) {
-            // Repair not yet implemented, just move near building
             const targetPos = world.getComponent(targetEntity, Position);
             if (targetPos) {
-              const tile = screenToTile(worldPos.x, worldPos.y);
-              this.commandMove(units, toFixed(tile.tileX), toFixed(tile.tileY));
+              const tile = screenToTile(worldPos);
+              this.commandMove(units, { x: toFixed(tile.x), y: toFixed(tile.y) });
             }
           }
         }
@@ -361,9 +346,9 @@ export class InputManager {
 
   // ---- Left-click (normal mode) ----
 
-  private handleLeftClick(screenX: number, screenY: number, shiftKey: boolean): void {
-    const worldPos = this.renderer.screenToWorld(screenX, screenY);
-    const clickedEntity = this.renderer.entityRenderer.getEntityAtWorldPos(worldPos.x, worldPos.y);
+  private handleLeftClick(screenPos: Point, shiftKey: boolean): void {
+    const worldPos = this.renderer.screenToWorld(screenPos);
+    const clickedEntity = this.renderer.entityRenderer.getEntityAtWorldPos(worldPos);
     const world = this.game.world;
 
     if (clickedEntity !== null) {
@@ -375,7 +360,7 @@ export class InputManager {
 
     const ownSelected = this.getCommandableSelected();
     if (ownSelected.length > 0) {
-      this.issueSmartCommand(ownSelected, worldPos.x, worldPos.y, null);
+      this.issueSmartCommand(ownSelected, worldPos, null);
     } else {
       this.deselectAll();
     }
@@ -397,8 +382,8 @@ export class InputManager {
       if (world.hasComponent(entityId, Building.type)) continue;
 
       const pos = world.getComponent(entityId, Position)!;
-      const screenPx = tileToScreen(pos.tileX, pos.tileY);
-      const sp = this.renderer.worldToScreen(screenPx.x, screenPx.y);
+      const screenPx = tileToScreen({ x: pos.tileX, y: pos.tileY });
+      const sp = this.renderer.worldToScreen(screenPx);
 
       if (sp.x >= rect.x && sp.x <= rect.x + rect.width &&
           sp.y >= rect.y && sp.y <= rect.y + rect.height) {
@@ -410,8 +395,8 @@ export class InputManager {
     if (!selectedAny) {
       for (const entityId of entities) {
         const pos = world.getComponent(entityId, Position)!;
-        const screenPx = tileToScreen(pos.tileX, pos.tileY);
-        const sp = this.renderer.worldToScreen(screenPx.x, screenPx.y);
+        const screenPx = tileToScreen({ x: pos.tileX, y: pos.tileY });
+        const sp = this.renderer.worldToScreen(screenPx);
 
         if (sp.x >= rect.x && sp.x <= rect.x + rect.width &&
             sp.y >= rect.y && sp.y <= rect.y + rect.height) {
@@ -424,20 +409,19 @@ export class InputManager {
 
   // ---- Right-click (smart command) ----
 
-  private handleRightClick(screenX: number, screenY: number): void {
+  private handleRightClick(screenPos: Point): void {
     const ownSelected = this.getCommandableSelected();
     if (ownSelected.length === 0) return;
 
-    const worldPos = this.renderer.screenToWorld(screenX, screenY);
-    const targetEntity = this.renderer.entityRenderer.getEntityAtWorldPos(worldPos.x, worldPos.y);
+    const worldPos = this.renderer.screenToWorld(screenPos);
+    const targetEntity = this.renderer.entityRenderer.getEntityAtWorldPos(worldPos);
 
-    this.issueSmartCommand(ownSelected, worldPos.x, worldPos.y, targetEntity);
+    this.issueSmartCommand(ownSelected, worldPos, targetEntity);
   }
 
   private issueSmartCommand(
     ownUnits: EntityId[],
-    worldX: number,
-    worldY: number,
+    worldPos: Point,
     targetEntity: EntityId | null,
   ): void {
     const world = this.game.world;
@@ -457,13 +441,12 @@ export class InputManager {
       }
     }
 
-    const tile = screenToTile(worldX, worldY);
-    this.commandMove(ownUnits, toFixed(tile.tileX), toFixed(tile.tileY));
+    const tile = screenToTile(worldPos);
+    this.commandMove(ownUnits, { x: toFixed(tile.x), y: toFixed(tile.y) });
   }
 
   // ---- Event log helpers ----
 
-  /** Build an EventSender for the given entities. */
   private senderForUnits(entities: EntityId[]): EventSender {
     const world = this.game.world;
 
@@ -473,7 +456,6 @@ export class InputManager {
       return { key: `entity:${entities[0]}`, label };
     }
 
-    // Group selection: use a stable key from sorted entity ids
     const sorted = [...entities].sort((a, b) => a - b);
     return { key: `group:${sorted.join(',')}`, label: `${entities.length} units` };
   }
@@ -497,7 +479,6 @@ export class InputManager {
     const mov = world.getComponent(entityId, Movement);
     if (mov) mov.clearPath();
 
-    // Remove debug path for this entity
     debugState.activePaths = debugState.activePaths.filter(e => e.entityId !== entityId);
 
     const combat = world.getComponent(entityId, Combat);
@@ -510,13 +491,12 @@ export class InputManager {
     }
   }
 
-  private commandMove(entities: EntityId[], targetX: number, targetY: number): void {
+  private commandMove(entities: EntityId[], target: Point): void {
     const world = this.game.world;
-    const goalTileX = Math.round(targetX / 1000);
-    const goalTileY = Math.round(targetY / 1000);
+    const goalTileX = Math.round(target.x / 1000);
+    const goalTileY = Math.round(target.y / 1000);
     const offsets = InputManager.getFormationOffsets(entities.length);
 
-    // Clear previous debug paths for these entities
     if (debugState.showPaths) {
       debugState.activePaths = debugState.activePaths.filter(
         e => !entities.includes(e.entityId),
@@ -537,14 +517,14 @@ export class InputManager {
       const offset = offsets[i];
       let unitGoalX = goalTileX + offset.dx;
       let unitGoalY = goalTileY + offset.dy;
-      if (!this.game.gameMap.isWalkable(unitGoalX, unitGoalY)) {
+      if (!this.game.gameMap.isWalkable({ x: unitGoalX, y: unitGoalY })) {
         unitGoalX = goalTileX;
         unitGoalY = goalTileY;
       }
 
       const startTileX = Math.round(pos.x / 1000);
       const startTileY = Math.round(pos.y / 1000);
-      const path = findPath(this.game.gameMap, startTileX, startTileY, unitGoalX, unitGoalY);
+      const path = findPath(this.game.gameMap, { x: startTileX, y: startTileY }, { x: unitGoalX, y: unitGoalY });
       if (path.length > 0) {
         mov.setPath(path);
         if (debugState.showPaths) {
@@ -577,14 +557,14 @@ export class InputManager {
 
       const mov = world.getComponent(entityId, Movement);
       if (mov && targetPos) {
-        mov.setPath([{ x: targetPos.x, y: targetPos.y }]);
+        mov.setPath([targetPos.toPoint()]);
       }
     }
 
     this.emitOrderConfirmed('Attack', entities);
   }
 
-  private commandPatrol(entities: EntityId[], targetX: number, targetY: number): void {
+  private commandPatrol(entities: EntityId[], target: Point): void {
     const world = this.game.world;
 
     for (const entityId of entities) {
@@ -597,14 +577,12 @@ export class InputManager {
       const behavior = world.getComponent(entityId, UnitBehavior);
       if (behavior) {
         behavior.state = 'patrolling';
-        behavior.patrolOriginX = pos.x;
-        behavior.patrolOriginY = pos.y;
-        behavior.patrolTargetX = targetX;
-        behavior.patrolTargetY = targetY;
+        behavior.patrolOrigin = pos.toPoint();
+        behavior.patrolTarget = target;
         behavior.patrolForward = true;
       }
 
-      mov.setPath([{ x: targetX, y: targetY }]);
+      mov.setPath([target]);
     }
 
     this.emitOrderConfirmed('Patrol', entities);
@@ -627,12 +605,12 @@ export class InputManager {
 
         carrier.gatherTarget = targetEntity;
         carrier.state = 'moving_to_resource';
-        mov.setPath([{ x: targetPos.x, y: targetPos.y }]);
+        mov.setPath([targetPos.toPoint()]);
       } else if (mov) {
         this.clearAllStates(entityId);
         const behavior = world.getComponent(entityId, UnitBehavior);
         if (behavior) behavior.state = 'moving';
-        mov.setPath([{ x: targetPos.x, y: targetPos.y }]);
+        mov.setPath([targetPos.toPoint()]);
       }
     }
 

@@ -3,7 +3,7 @@ import {
   UnitType, Building, Selectable, ResourceCarrier,
   ResourceSource, Production, UnitBehavior, Collider, toFixed,
 } from '@warcraft-web/shared';
-import type { EntityId, UnitKind, FactionId, BuildingKind } from '@warcraft-web/shared';
+import type { EntityId, UnitKind, FactionId, BuildingKind, Point } from '@warcraft-web/shared';
 
 /**
  * Unit stat definitions: keyed by UnitKind.
@@ -76,14 +76,11 @@ const PRODUCTION_TIMES: Record<string, number> = {
 };
 
 export class EntityFactory {
-  /**
-   * Spawn a unit at the given fixed-point position.
-   */
+  /** Spawn a unit at the given fixed-point position. */
   static createUnit(
     world: World,
     kind: UnitKind,
-    x: number,
-    y: number,
+    pos: Point,
     playerId: number,
     faction: FactionId,
   ): EntityId {
@@ -92,7 +89,7 @@ export class EntityFactory {
 
     const entity = world.createEntity();
 
-    world.addComponent(entity, new Position(x, y));
+    world.addComponent(entity, new Position(pos.x, pos.y));
     world.addComponent(entity, new Movement(stats.speed));
     world.addComponent(entity, new Health(stats.hp));
     world.addComponent(entity, new Combat({
@@ -116,14 +113,11 @@ export class EntityFactory {
     return entity;
   }
 
-  /**
-   * Spawn a building at the given fixed-point position.
-   */
+  /** Spawn a building at the given fixed-point position. */
   static createBuilding(
     world: World,
     kind: BuildingKind,
-    x: number,
-    y: number,
+    pos: Point,
     playerId: number,
     faction: FactionId,
     isComplete: boolean = false,
@@ -133,7 +127,7 @@ export class EntityFactory {
 
     const entity = world.createEntity();
 
-    world.addComponent(entity, new Position(x, y));
+    world.addComponent(entity, new Position(pos.x, pos.y));
     world.addComponent(entity, new Health(stats.hp));
     world.addComponent(entity, new Building({
       kind,
@@ -147,7 +141,6 @@ export class EntityFactory {
     world.addComponent(entity, new Owner(playerId, faction));
     world.addComponent(entity, new Selectable(stats.tileWidth * 20, stats.tileHeight * 16));
 
-    // Static collider: radius covers the building footprint (half the diagonal in fp)
     const buildingRadius = Math.round(Math.max(stats.tileWidth, stats.tileHeight) * 500 * 0.9);
     world.addComponent(entity, new Collider(buildingRadius, true));
 
@@ -155,7 +148,6 @@ export class EntityFactory {
       world.addComponent(entity, new Production(stats.canProduce));
     }
 
-    // If already complete, set health to max
     if (isComplete) {
       const health = world.getComponent(entity, Health)!;
       health.current = health.max;
@@ -164,23 +156,19 @@ export class EntityFactory {
     return entity;
   }
 
-  /**
-   * Spawn a resource node (gold mine, tree).
-   */
+  /** Spawn a resource node (gold mine, tree). */
   static createResource(
     world: World,
     type: 'gold' | 'lumber',
-    x: number,
-    y: number,
+    pos: Point,
     amount: number,
   ): EntityId {
     const entity = world.createEntity();
 
-    world.addComponent(entity, new Position(x, y));
-    world.addComponent(entity, new Owner(0, 'humans')); // Neutral
+    world.addComponent(entity, new Position(pos.x, pos.y));
+    world.addComponent(entity, new Owner(0, 'humans'));
     world.addComponent(entity, new Selectable(20, 20));
 
-    // Gold mines are larger than trees
     const resourceRadius = type === 'gold' ? 700 : 400;
     world.addComponent(entity, new Collider(resourceRadius, true));
 
@@ -190,9 +178,7 @@ export class EntityFactory {
     return entity;
   }
 
-  /**
-   * Get the production time for a unit kind.
-   */
+  /** Get the production time for a unit kind. */
   static getProductionTime(kind: UnitKind): number {
     return PRODUCTION_TIMES[kind] ?? 60;
   }

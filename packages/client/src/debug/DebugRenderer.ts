@@ -3,7 +3,7 @@ import {
   Position, Collider, UnitBehavior, UnitType, Building,
   Movement, tileToScreen,
 } from '@warcraft-web/shared';
-import type { EntityId } from '@warcraft-web/shared';
+import type { EntityId, Point } from '@warcraft-web/shared';
 import type { LocalGame } from '../game/LocalGame.js';
 import type { EntityRenderer } from '../renderer/EntityRenderer.js';
 import { debugState } from './DebugState.js';
@@ -61,7 +61,7 @@ export class DebugRenderer {
    * Compute the interpolated screen position for an entity, matching
    * exactly what EntityRenderer does for the sprite.
    */
-  private interpolatedScreen(entityId: EntityId, pos: Position, alpha: number): { x: number; y: number } {
+  private interpolatedScreen(entityId: EntityId, pos: Position, alpha: number): Point {
     const prev = this.entityRenderer.prevPositions.get(entityId);
     let tileX: number;
     let tileY: number;
@@ -76,7 +76,7 @@ export class DebugRenderer {
       tileY = pos.tileY;
     }
 
-    return tileToScreen(tileX, tileY);
+    return tileToScreen({ x: tileX, y: tileY });
   }
 
   // ---- Pathfinding lines ----
@@ -94,14 +94,14 @@ export class DebugRenderer {
       this.pathGraphics.moveTo(startScreen.x, startScreen.y);
 
       for (const node of entry.path) {
-        const screen = tileToScreen(node.x / 1000, node.y / 1000);
+        const screen = tileToScreen({ x: node.x / 1000, y: node.y / 1000 });
         this.pathGraphics.lineTo(screen.x, screen.y);
       }
 
       this.pathGraphics.stroke({ width: 1.5, color: 0x00ff88, alpha: 0.7 });
 
       for (const node of entry.path) {
-        const screen = tileToScreen(node.x / 1000, node.y / 1000);
+        const screen = tileToScreen({ x: node.x / 1000, y: node.y / 1000 });
         this.pathGraphics.circle(screen.x, screen.y, 2.5);
         this.pathGraphics.fill({ color: 0xffff00, alpha: 0.8 });
       }

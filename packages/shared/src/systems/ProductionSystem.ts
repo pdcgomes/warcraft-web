@@ -5,6 +5,7 @@ import { Production } from '../components/Production.js';
 import { Building } from '../components/Building.js';
 import { Owner } from '../components/Owner.js';
 import type { UnitKind } from '../components/UnitType.js';
+import type { Point } from '../math/Point.js';
 import type { EntityId } from '../ecs/Entity.js';
 import type { GameEventLog } from '../game/GameEventLog.js';
 
@@ -15,8 +16,7 @@ import type { GameEventLog } from '../game/GameEventLog.js';
 export type UnitSpawnCallback = (
   world: World,
   unitKind: UnitKind,
-  spawnX: number,
-  spawnY: number,
+  spawnPos: Point,
   playerId: number,
   faction: 'humans' | 'orcs',
 ) => EntityId | null;
@@ -63,24 +63,21 @@ export class ProductionSystem extends System {
       const owner = world.getComponent(entityId, Owner)!;
       const pos = world.getComponent(entityId, Position)!;
 
-      // Only complete buildings can produce
       if (!building.isComplete) continue;
       if (production.queue.length === 0) continue;
 
-      // Tick the first item in the queue
       const item = production.queue[0];
       item.ticksRemaining--;
 
       if (item.ticksRemaining <= 0) {
-        // Production complete: spawn unit
         production.queue.shift();
 
-        // Use rally point if set, otherwise spawn near building
-        const spawnX = production.rallyX !== 0 ? production.rallyX : pos.x + building.tileWidth * 1000;
-        const spawnY = production.rallyY !== 0 ? production.rallyY : pos.y + building.tileHeight * 1000;
+        const spawnPos: Point = production.rally.x !== 0 || production.rally.y !== 0
+          ? production.rally
+          : { x: pos.x + building.tileWidth * 1000, y: pos.y + building.tileHeight * 1000 };
 
         if (this.spawnCallback) {
-          const newEntity = this.spawnCallback(world, item.unitKind, spawnX, spawnY, owner.playerId, owner.faction);
+          const newEntity = this.spawnCallback(world, item.unitKind, spawnPos, owner.playerId, owner.faction);
           this.emitSpawnEvent(world, entityId, building, item.unitKind, newEntity);
         }
       }

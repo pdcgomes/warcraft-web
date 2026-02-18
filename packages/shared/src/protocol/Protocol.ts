@@ -1,4 +1,5 @@
 import type { EntityId, UnitKind, BuildingKind } from '../index.js';
+import type { Point } from '../math/Point.js';
 
 /**
  * Shared message types for client-server communication.
@@ -76,9 +77,9 @@ export interface ServerDesyncMessage {
 // --- Game Commands (shared between client/server) ---
 
 export type GameCommand =
-  | { action: 'move'; entities: EntityId[]; targetX: number; targetY: number }
+  | { action: 'move'; entities: EntityId[]; target: Point }
   | { action: 'attack'; entities: EntityId[]; targetEntity: EntityId }
   | { action: 'gather'; entities: EntityId[]; targetEntity: EntityId }
-  | { action: 'build'; entity: EntityId; buildingKind: BuildingKind; x: number; y: number }
+  | { action: 'build'; entity: EntityId; buildingKind: BuildingKind; pos: Point }
   | { action: 'train'; buildingEntity: EntityId; unitKind: UnitKind }
   | { action: 'stop'; entities: EntityId[] };

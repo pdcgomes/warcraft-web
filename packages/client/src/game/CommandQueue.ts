@@ -1,16 +1,17 @@
 import type { EntityId, UnitKind, BuildingKind } from '@warcraft-web/shared';
+import type { Point } from '@warcraft-web/shared';
 
 /**
  * Game command types for the command queue.
  */
 export type GameCommand =
-  | { type: 'move'; entities: EntityId[]; targetX: number; targetY: number }
+  | { type: 'move'; entities: EntityId[]; target: Point }
   | { type: 'attack'; entities: EntityId[]; targetEntity: EntityId }
   | { type: 'gather'; entities: EntityId[]; targetEntity: EntityId }
-  | { type: 'build'; entity: EntityId; buildingKind: BuildingKind; x: number; y: number }
+  | { type: 'build'; entity: EntityId; buildingKind: BuildingKind; pos: Point }
   | { type: 'train'; buildingEntity: EntityId; unitKind: UnitKind }
   | { type: 'stop'; entities: EntityId[] }
-  | { type: 'patrol'; entities: EntityId[]; targetX: number; targetY: number };
+  | { type: 'patrol'; entities: EntityId[]; target: Point };
 
 /**
  * Queues player commands to be processed on the next simulation tick.

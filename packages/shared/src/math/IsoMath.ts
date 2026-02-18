@@ -9,6 +9,8 @@
  * The isometric projection uses a 2:1 diamond ratio.
  */
 
+import type { Point } from './Point.js';
+
 /** Width of a single tile diamond in pixels */
 export const TILE_WIDTH = 64;
 /** Height of a single tile diamond in pixels */
@@ -18,26 +20,26 @@ export const TILE_WIDTH_HALF = TILE_WIDTH / 2;
 export const TILE_HEIGHT_HALF = TILE_HEIGHT / 2;
 
 /** Convert tile coordinates to screen pixel coordinates. */
-export function tileToScreen(tileX: number, tileY: number): { x: number; y: number } {
+export function tileToScreen(tile: Point): Point {
   return {
-    x: (tileX - tileY) * TILE_WIDTH_HALF,
-    y: (tileX + tileY) * TILE_HEIGHT_HALF,
+    x: (tile.x - tile.y) * TILE_WIDTH_HALF,
+    y: (tile.x + tile.y) * TILE_HEIGHT_HALF,
   };
 }
 
-/** Convert screen pixel coordinates to tile coordinates. */
-export function screenToTile(screenX: number, screenY: number): { tileX: number; tileY: number } {
-  const tileX = (screenX / TILE_WIDTH_HALF + screenY / TILE_HEIGHT_HALF) / 2;
-  const tileY = (screenY / TILE_HEIGHT_HALF - screenX / TILE_WIDTH_HALF) / 2;
-  return { tileX, tileY };
+/** Convert screen pixel coordinates to tile coordinates (fractional). */
+export function screenToTile(screen: Point): Point {
+  const tileX = (screen.x / TILE_WIDTH_HALF + screen.y / TILE_HEIGHT_HALF) / 2;
+  const tileY = (screen.y / TILE_HEIGHT_HALF - screen.x / TILE_WIDTH_HALF) / 2;
+  return { x: tileX, y: tileY };
 }
 
 /** Convert screen coordinates to the nearest integer tile. */
-export function screenToTileRounded(screenX: number, screenY: number): { tileX: number; tileY: number } {
-  const { tileX, tileY } = screenToTile(screenX, screenY);
+export function screenToTileRounded(screen: Point): Point {
+  const tile = screenToTile(screen);
   return {
-    tileX: Math.round(tileX),
-    tileY: Math.round(tileY),
+    x: Math.round(tile.x),
+    y: Math.round(tile.y),
   };
 }
 
@@ -46,6 +48,6 @@ export function screenToTileRounded(screenX: number, screenY: number): { tileX: 
  * Higher Y tiles should render on top of lower Y tiles.
  * Within same row, higher X renders on top.
  */
-export function getTileDepth(tileX: number, tileY: number): number {
-  return tileX + tileY;
+export function getTileDepth(tile: Point): number {
+  return tile.x + tile.y;
 }

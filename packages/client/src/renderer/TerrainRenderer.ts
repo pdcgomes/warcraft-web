@@ -29,9 +29,9 @@ export class TerrainRenderer {
 
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
-        const terrain = map.getTerrain(x, y);
+        const terrain = map.getTerrain({ x, y });
         const info = TERRAIN_DATA[terrain];
-        const screen = tileToScreen(x, y);
+        const screen = tileToScreen({ x, y });
 
         const g = new Graphics();
         g.poly([
@@ -42,7 +42,6 @@ export class TerrainRenderer {
         ]);
         g.fill(info.color);
 
-        // Add grid line
         g.poly([
           screen.x, screen.y - TILE_HEIGHT_HALF,
           screen.x + TILE_WIDTH_HALF, screen.y,
@@ -51,7 +50,6 @@ export class TerrainRenderer {
         ]);
         g.stroke({ width: 0.5, color: 0x000000, alpha: 0.15 });
 
-        // Add subtle decorations for forest tiles
         if (terrain === TerrainType.Forest) {
           this.drawTreeIcon(g, screen.x, screen.y - 4);
         }
@@ -62,7 +60,6 @@ export class TerrainRenderer {
   }
 
   private drawTreeIcon(g: Graphics, cx: number, cy: number): void {
-    // Simple triangle tree
     g.poly([cx, cy - 8, cx - 4, cy + 2, cx + 4, cy + 2]);
     g.fill(0x1a4010);
     g.rect(cx - 1, cy + 2, 2, 3);
