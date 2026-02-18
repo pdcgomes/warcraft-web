@@ -1,4 +1,5 @@
 import { Application, Container } from 'pixi.js';
+import { tileToScreen } from '@warcraft-web/shared';
 import { TerrainRenderer } from './TerrainRenderer.js';
 import { EntityRenderer } from './EntityRenderer.js';
 import { MinimapRenderer } from './MinimapRenderer.js';
@@ -28,6 +29,9 @@ export class GameRenderer {
   private readonly MIN_ZOOM = 0.5;
   private readonly MAX_ZOOM = 2;
 
+  /** World-pixel bounding box of the full tile map (computed once). */
+  private mapBounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+
   constructor(app: Application, game: LocalGame) {
     this.app = app;
     this.game = game;
@@ -37,10 +41,10 @@ export class GameRenderer {
 
     this.terrainRenderer = new TerrainRenderer(this.worldContainer, game);
     this.entityRenderer = new EntityRenderer(this.worldContainer, game);
-    this.minimapRenderer = new MinimapRenderer(game);
+    this.minimapRenderer = new MinimapRenderer(game, this);
 
-    // Initial terrain draw
     this.terrainRenderer.buildTerrain();
+    this.computeMapBounds();
   }
 
   /** Move camera by delta pixels. */
@@ -83,15 +87,80 @@ export class GameRenderer {
 
   /** Get the visible game area height (total screen minus HUD). */
   get gameAreaHeight(): number {
-    return this.app.screen.height - 160; // HUD is 160px
+    return this.app.screen.height - 160;
   }
 
   render(alpha: number): void {
+    this.clampCamera();
+
     this.worldContainer.x = this.cameraX;
     this.worldContainer.y = this.cameraY;
     this.worldContainer.scale.set(this.zoom);
 
     this.entityRenderer.update(alpha);
     this.minimapRenderer.render();
+  }
+
+  /**
+   * Compute the world-pixel bounding box of the isometric tile map.
+   * The four tile-grid corners projected into screen space give us
+   * the extent of the map in world pixels.
+   */
+  private computeMapBounds(): void {
+    const w = this.game.gameMap.width;
+    const h = this.game.gameMap.height;
+
+    const corners = [
+      tileToScreen({ x: 0, y: 0 }),
+      tileToScreen({ x: w, y: 0 }),
+      tileToScreen({ x: 0, y: h }),
+      tileToScreen({ x: w, y: h }),
+    ];
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const c of corners) {
+      if (c.x < minX) minX = c.x;
+      if (c.y < minY) minY = c.y;
+      if (c.x > maxX) maxX = c.x;
+      if (c.y > maxY) maxY = c.y;
+    }
+
+    this.mapBounds = { minX, minY, maxX, maxY };
+  }
+
+  /**
+   * Clamp camera so the viewport stays within the map bounds.
+   *
+   * The visible world region spans:
+   *   left  = -cameraX / zoom
+   *   right = (screenW - cameraX) / zoom
+   *   top   = -cameraY / zoom
+   *   bot   = (screenH - cameraY) / zoom
+   *
+   * We enforce: left >= mapMinX  and  right <= mapMaxX  (likewise for Y).
+   * When the map is smaller than the viewport, we center on that axis.
+   */
+  private clampCamera(): void {
+    const { minX, minY, maxX, maxY } = this.mapBounds;
+    const screenW = this.app.screen.width;
+    const screenH = this.gameAreaHeight;
+
+    const camMinX = screenW - maxX * this.zoom;
+    const camMaxX = -minX * this.zoom;
+
+    if (camMinX > camMaxX) {
+      this.cameraX = (camMinX + camMaxX) / 2;
+    } else {
+      this.cameraX = Math.max(camMinX, Math.min(camMaxX, this.cameraX));
+    }
+
+    const camMinY = screenH - maxY * this.zoom;
+    const camMaxY = -minY * this.zoom;
+
+    if (camMinY > camMaxY) {
+      this.cameraY = (camMinY + camMaxY) / 2;
+    } else {
+      this.cameraY = Math.max(camMinY, Math.min(camMaxY, this.cameraY));
+    }
   }
 }
