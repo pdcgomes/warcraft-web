@@ -1,7 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import {
   Position, Collider, UnitBehavior, UnitType, Building,
-  Movement, tileToScreen,
+  ResourceSource, Movement, tileToScreen,
 } from '@warcraft-web/shared';
 import type { EntityId, Point } from '@warcraft-web/shared';
 import type { LocalGame } from '../game/LocalGame.js';
@@ -136,8 +136,9 @@ export class DebugRenderer {
     const showName = debugState.showUnitNames;
     const showState = debugState.showBehaviorState;
     const showBuildings = debugState.showBuildingNames;
+    const showResources = debugState.showResourceNames;
 
-    if (!showName && !showState && !showBuildings) {
+    if (!showName && !showState && !showBuildings && !showResources) {
       for (const [, label] of this.labels) {
         label.visible = false;
       }
@@ -182,6 +183,25 @@ export class DebugRenderer {
         label.style.fill = 0xc8a82e;
         label.x = screen.x;
         label.y = screen.y - 32;
+        label.visible = true;
+      }
+    }
+
+    if (showResources) {
+      const resources = world.query(Position.type, ResourceSource.type);
+      const RESOURCE_LABELS: Record<string, string> = { gold: 'Gold', lumber: 'Lumber' };
+      for (const entityId of resources) {
+        activeIds.add(entityId);
+        const pos = world.getComponent(entityId, Position)!;
+        const src = world.getComponent(entityId, ResourceSource)!;
+        const screen = this.interpolatedScreen(entityId, pos, alpha);
+
+        const label = this.getOrCreateLabel(entityId);
+        const typeName = RESOURCE_LABELS[src.resourceType] ?? src.resourceType;
+        label.text = `${typeName}: ${src.amount}`;
+        label.style.fill = src.resourceType === 'gold' ? 0xffd700 : 0x8b6914;
+        label.x = screen.x;
+        label.y = screen.y - 20;
         label.visible = true;
       }
     }
