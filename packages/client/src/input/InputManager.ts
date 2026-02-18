@@ -5,8 +5,9 @@ import {
   UnitBehavior,
   getAvailableOrders, ORDER_DEFINITIONS,
   screenToTile, tileToScreen, toFixed, findPath,
+  BUILDING_DATA, getBuildableBuildings,
 } from '@warcraft-web/shared';
-import type { EntityId, OrderId, OrderDefinition, UnitKind, EventSender, Point } from '@warcraft-web/shared';
+import type { EntityId, OrderId, OrderDefinition, UnitKind, BuildingKind, EventSender, Point } from '@warcraft-web/shared';
 import type { GameRenderer } from '../renderer/GameRenderer.js';
 import type { LocalGame } from '../game/LocalGame.js';
 import { SelectionBox } from '../ui/SelectionBox.js';
@@ -61,6 +62,16 @@ export class InputManager {
   /** Callback fired whenever targeting mode changes (for HUD highlight). */
   onTargetingChanged: ((orderId: OrderId | null) => void) | null = null;
 
+  // ---- Build mode state ----
+  /** Which build submenu is currently open, or null. */
+  private buildMenuCategory: 'basic' | 'advanced' | null = null;
+
+  /** Which building kind the player is placing, or null. */
+  private placingBuilding: BuildingKind | null = null;
+
+  /** Cached list of available buildings for current build menu. */
+  private cachedBuildList: BuildingKind[] = [];
+
   constructor(app: Application, renderer: GameRenderer, game: LocalGame) {
     this.app = app;
     this.renderer = renderer;
@@ -84,9 +95,20 @@ export class InputManager {
     }
 
     if (def.targeting === 'submenu') {
+      this.cancelTargeting();
+      this.placingBuilding = null;
+      if (orderId === 'build') {
+        this.buildMenuCategory = 'basic';
+        this.refreshBuildList();
+      } else if (orderId === 'build_advanced') {
+        this.buildMenuCategory = 'advanced';
+        this.refreshBuildList();
+      }
       return;
     }
 
+    this.buildMenuCategory = null;
+    this.placingBuilding = null;
     this.activeOrder = orderId;
     this.onTargetingChanged?.(orderId);
   }
@@ -101,6 +123,46 @@ export class InputManager {
     return this.currentOrders;
   }
 
+  // ---- Build mode public API ----
+
+  /** Get the currently active build submenu category, or null. */
+  getBuildMenuCategory(): 'basic' | 'advanced' | null {
+    return this.buildMenuCategory;
+  }
+
+  /** Get the building kind currently being placed, or null. */
+  getPlacingBuilding(): BuildingKind | null {
+    return this.placingBuilding;
+  }
+
+  /** Get available buildings for the given category (for HUD). */
+  getAvailableBuildings(category: 'basic' | 'advanced'): BuildingKind[] {
+    if (this.buildMenuCategory === category) return this.cachedBuildList;
+    return [];
+  }
+
+  /** Called by HUD when the player clicks a building in the build menu. */
+  selectBuildingToPlace(kind: BuildingKind): void {
+    this.buildMenuCategory = null;
+    this.placingBuilding = kind;
+  }
+
+  /** Get the current ghost tile position (for rendering). */
+  getGhostTilePos(): Point | null {
+    if (this.placingBuilding === null) return null;
+    const worldPos = this.renderer.screenToWorld({ x: this.lastMouseX, y: this.lastMouseY });
+    const tile = screenToTile(worldPos);
+    return { x: Math.floor(tile.x), y: Math.floor(tile.y) };
+  }
+
+  private refreshBuildList(): void {
+    if (this.buildMenuCategory === null) { this.cachedBuildList = []; return; }
+    const pid = this.game.localPlayerId;
+    const faction = this.game.localFaction;
+    const ownedKinds = this.game.getOwnedBuildingKinds(pid);
+    this.cachedBuildList = getBuildableBuildings(faction, ownedKinds, this.buildMenuCategory);
+  }
+
   // ---- Keyboard ----
 
   private setupKeyboard(): void {
@@ -108,6 +170,14 @@ export class InputManager {
       this.keysDown.add(e.key);
 
       if (e.key === 'Escape') {
+        if (this.placingBuilding !== null) {
+          this.placingBuilding = null;
+          return;
+        }
+        if (this.buildMenuCategory !== null) {
+          this.buildMenuCategory = null;
+          return;
+        }
         if (this.activeOrder !== null) {
           this.cancelTargeting();
         } else {
@@ -117,8 +187,17 @@ export class InputManager {
       }
 
       if (e.key >= '1' && e.key <= '9') {
-        this.refreshCurrentOrders();
         const slot = parseInt(e.key) - 1;
+
+        // If in build menu, select a building
+        if (this.buildMenuCategory !== null) {
+          if (slot < this.cachedBuildList.length) {
+            this.selectBuildingToPlace(this.cachedBuildList[slot]);
+          }
+          return;
+        }
+
+        this.refreshCurrentOrders();
         if (slot < this.currentOrders.length) {
           this.activateOrder(this.currentOrders[slot].id);
         }
@@ -179,7 +258,10 @@ export class InputManager {
       if (e.button === 0 && this.isLeftDown) {
         this.isLeftDown = false;
 
-        if (this.activeOrder !== null) {
+        if (this.placingBuilding !== null) {
+          this.selectionBox.end();
+          this.tryPlaceBuilding({ x: e.clientX, y: e.clientY });
+        } else if (this.activeOrder !== null) {
           this.selectionBox.end();
           this.executeTargetedOrder({ x: e.clientX, y: e.clientY });
         } else if (this.isDragging) {
@@ -192,7 +274,11 @@ export class InputManager {
         this.isDragging = false;
       } else if (e.button === 2) {
         if (this.isRightMouseDown && !this.isRightDragging) {
-          if (this.activeOrder !== null) {
+          if (this.placingBuilding !== null) {
+            this.placingBuilding = null;
+          } else if (this.buildMenuCategory !== null) {
+            this.buildMenuCategory = null;
+          } else if (this.activeOrder !== null) {
             this.cancelTargeting();
           } else {
             this.handleRightClick({ x: e.clientX, y: e.clientY });
@@ -243,6 +329,61 @@ export class InputManager {
     }
 
     this.refreshCurrentOrders();
+  }
+
+  // ---- Building placement ----
+
+  private tryPlaceBuilding(screenPos: Point): void {
+    const kind = this.placingBuilding;
+    if (kind === null) return;
+
+    const data = BUILDING_DATA[kind];
+    const worldPos = this.renderer.screenToWorld(screenPos);
+    const tile = screenToTile(worldPos);
+    const tileX = Math.floor(tile.x);
+    const tileY = Math.floor(tile.y);
+
+    // Check buildability
+    if (!this.game.gameMap.isAreaBuildable({ x: tileX, y: tileY }, data.tileWidth, data.tileHeight)) {
+      return;
+    }
+
+    // Check affordability
+    const pid = this.game.localPlayerId;
+    if (!this.game.playerResources.canAfford(pid, data.cost)) return;
+
+    // Deduct cost
+    this.game.playerResources.deduct(pid, data.cost);
+
+    // Create incomplete building
+    const buildingEntity = this.game.placeBuilding(kind, tileX, tileY);
+
+    // Command the first available worker to construct it
+    const workers = this.getCommandableSelected().filter(eid => {
+      const ut = this.game.world.getComponent(eid, UnitType);
+      return ut !== undefined && ut.kind === 'worker';
+    });
+
+    if (workers.length > 0) {
+      const workerId = workers[0];
+      this.clearAllStates(workerId);
+
+      const behavior = this.game.world.getComponent(workerId, UnitBehavior);
+      if (behavior) {
+        behavior.state = 'constructing';
+        behavior.constructingTarget = buildingEntity;
+      }
+
+      const buildingPos = this.game.world.getComponent(buildingEntity, Position);
+      const mov = this.game.world.getComponent(workerId, Movement);
+      if (mov && buildingPos) {
+        mov.setPath([buildingPos.toPoint()]);
+      }
+
+      this.emitOrderConfirmed('Build', [workerId]);
+    }
+
+    this.placingBuilding = null;
   }
 
   // ---- Order infrastructure ----
@@ -340,11 +481,7 @@ export class InputManager {
           const targetBuilding = world.getComponent(targetEntity, Building);
           const targetOwner = world.getComponent(targetEntity, Owner);
           if (targetBuilding && targetOwner && targetOwner.playerId === this.game.localPlayerId) {
-            const targetPos = world.getComponent(targetEntity, Position);
-            if (targetPos) {
-              const tile = screenToTile(worldPos);
-              this.commandMove(units, { x: toFixed(tile.x), y: toFixed(tile.y) });
-            }
+            this.commandRepair(units, targetEntity);
           }
         }
         break;
@@ -484,6 +621,8 @@ export class InputManager {
     if (behavior) {
       behavior.state = 'idle';
       behavior.returnState = null;
+      behavior.constructingTarget = null;
+      behavior.repairTarget = null;
     }
 
     const mov = world.getComponent(entityId, Movement);
@@ -641,6 +780,29 @@ export class InputManager {
       if (behavior) behavior.state = 'holding';
     }
     this.emitOrderConfirmed('Hold Position', entities);
+  }
+
+  private commandRepair(entities: EntityId[], targetEntity: EntityId): void {
+    const world = this.game.world;
+    const targetPos = world.getComponent(targetEntity, Position);
+    if (!targetPos) return;
+
+    for (const entityId of entities) {
+      this.clearAllStates(entityId);
+
+      const behavior = world.getComponent(entityId, UnitBehavior);
+      if (behavior) {
+        behavior.state = 'repairing';
+        behavior.repairTarget = targetEntity;
+      }
+
+      const mov = world.getComponent(entityId, Movement);
+      if (mov) {
+        mov.setPath([targetPos.toPoint()]);
+      }
+    }
+
+    this.emitOrderConfirmed('Repair', entities);
   }
 
   // ---- Formation ----

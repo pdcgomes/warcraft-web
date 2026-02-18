@@ -178,9 +178,133 @@
     .event-log-msg {
       color: #d0d0e0;
     }
+    /* HP bar */
+    .hp-bar-container {
+      width: 100%;
+      height: 8px;
+      background: #1a1a2e;
+      border: 1px solid #444;
+      border-radius: 2px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+    .hp-bar-fill {
+      height: 100%;
+      transition: width 0.15s ease;
+    }
+    /* Production queue */
+    .prod-queue {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+      align-items: center;
+    }
+    .prod-queue-item {
+      position: relative;
+      width: 36px;
+      height: 36px;
+      background: #2a2a4e;
+      border: 1px solid #c8a82e66;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: #e0d6a0;
+      text-align: center;
+      line-height: 1.1;
+      overflow: hidden;
+    }
+    .prod-queue-item:first-child {
+      border-color: #ffd700;
+    }
+    .prod-queue-progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: #c8a82e;
+      transition: width 0.15s ease;
+    }
+    /* Multi-select grid */
+    .multi-select-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .multi-select-unit {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      width: 52px;
+    }
+    .multi-select-unit .hp-bar-container {
+      width: 44px;
+      height: 4px;
+      margin-top: 0;
+    }
+    .multi-select-label {
+      font-size: 9px;
+      color: #c8a82e;
+      text-align: center;
+      line-height: 1.1;
+      max-width: 52px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
+  <!-- Main menu overlay -->
+  <div id="main-menu" style="
+    position:absolute; inset:0; z-index:100;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#0a0a1a 0%,#1a1a3e 50%,#0a0a1a 100%);
+    color:#e0d6a0; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+    <h1 style="font-size:48px; color:#c8a82e; text-shadow:2px 2px 6px rgba(0,0,0,0.8); margin-bottom:8px;">Warcraft Web</h1>
+    <p style="font-size:14px; color:#888; margin-bottom:40px;">A Warcraft II-inspired RTS</p>
+    <button id="btn-singleplayer" style="
+      width:240px; padding:14px 0; margin:8px; font-size:18px; cursor:pointer;
+      background:#2a2a4e; color:#e0d6a0; border:2px solid #c8a82e; border-radius:6px;
+      transition:background 0.2s;" onmouseenter="this.style.background='#3a3a6e'" onmouseleave="this.style.background='#2a2a4e'">
+      Single Player
+    </button>
+    <button id="btn-multiplayer" style="
+      width:240px; padding:14px 0; margin:8px; font-size:18px; cursor:pointer;
+      background:#2a2a4e; color:#e0d6a0; border:2px solid #c8a82e; border-radius:6px;
+      transition:background 0.2s;" onmouseenter="this.style.background='#3a3a6e'" onmouseleave="this.style.background='#2a2a4e'">
+      Multiplayer
+    </button>
+  </div>
+
+  <!-- Lobby overlay (hidden by default) -->
+  <div id="lobby-screen" style="
+    position:absolute; inset:0; z-index:100; display:none;
+    flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#0a0a1a 0%,#1a1a3e 50%,#0a0a1a 100%);
+    color:#e0d6a0; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+    <h2 style="font-size:28px; color:#c8a82e; margin-bottom:8px;">Multiplayer Lobby</h2>
+    <p id="lobby-status" style="font-size:13px; color:#888; margin-bottom:20px;">Connecting...</p>
+    <div id="lobby-players" style="
+      width:320px; min-height:100px; background:#1a1a2e; border:1px solid #c8a82e44;
+      border-radius:6px; padding:12px; margin-bottom:20px; font-size:14px;"></div>
+    <div style="display:flex; gap:12px;">
+      <button id="btn-ready" style="
+        padding:12px 32px; font-size:16px; cursor:pointer;
+        background:#2a4e2a; color:#e0d6a0; border:2px solid #4a8a4a; border-radius:6px;">
+        Ready
+      </button>
+      <button id="btn-lobby-back" style="
+        padding:12px 32px; font-size:16px; cursor:pointer;
+        background:#4e2a2a; color:#e0d6a0; border:2px solid #8a4a4a; border-radius:6px;">
+        Back
+      </button>
+    </div>
+  </div>
+
   <div id="game-container">
     <div id="resource-bar">
       <div class="resource-item">
@@ -191,11 +315,30 @@
         <div class="resource-icon lumber-icon"></div>
         <span id="lumber-count">0</span>
       </div>
+      <div class="resource-item">
+        <span style="color:#a0c0ff;">Supply:</span>
+        <span id="supply-count">0/0</span>
+      </div>
       <div class="resource-item" style="margin-left: auto;">
         <span id="tick-count">Tick: 0</span>
       </div>
     </div>
     <div id="selection-box"></div>
+
+    <!-- End-game overlay (hidden) -->
+    <div id="endgame-overlay" style="
+      position:absolute; inset:0; z-index:100; display:none;
+      flex-direction:column; align-items:center; justify-content:center;
+      background:rgba(0,0,0,0.75);
+      color:#e0d6a0; font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+      <h1 id="endgame-title" style="font-size:48px; color:#c8a82e; text-shadow:2px 2px 6px rgba(0,0,0,0.8); margin-bottom:16px;"></h1>
+      <p id="endgame-subtitle" style="font-size:18px; color:#aaa; margin-bottom:32px;"></p>
+      <button id="btn-endgame-menu" style="
+        padding:14px 40px; font-size:18px; cursor:pointer;
+        background:#2a2a4e; color:#e0d6a0; border:2px solid #c8a82e; border-radius:6px;">
+        Back to Menu
+      </button>
+    </div>
     <div id="hud">
       <div id="minimap-panel">
         <canvas id="minimap-canvas" width="180" height="140"></canvas>

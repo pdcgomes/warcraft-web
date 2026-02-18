@@ -11,19 +11,33 @@ import { Building } from '../components/Building.js';
 import { fpDistance } from '../math/FixedPoint.js';
 import type { GameEventLog } from '../game/GameEventLog.js';
 
+import type { DamageType } from '../components/Combat.js';
+
 /**
  * Handles attack cooldowns, target acquisition, and damage application.
  *
- * Behavioral state rules:
+ * Behavioral state rules (for units with UnitBehavior):
  * - 'attacking': full combat (chase + attack). On target lost -> returnState or 'idle'.
  * - 'idle': auto-acquire in sight range -> 'attacking'.
  * - 'patrolling': auto-acquire in sight range -> 'attacking' with returnState='patrolling'.
- * - 'holding': auto-acquire in attack range only, attack in range, never chase, stay 'holding'.
- * - 'moving', 'gathering': ignored entirely.
- * - Does NOT call destroyEntity -- DeathCleanupSystem handles that exclusively.
+ * - 'holding': auto-acquire in attack range only, attack in range, never chase.
+ * - 'moving', 'gathering', 'constructing': ignored entirely.
+ *
+ * Buildings with Combat (towers) have no UnitBehavior. They behave like permanent
+ * 'holding' units: auto-acquire in attack range, never chase.
+ *
+ * Does NOT call destroyEntity -- DeathCleanupSystem handles that exclusively.
  */
-/** Throttle window for "under attack" events (ticks). At 10 tps = 5 seconds. */
 const UNDER_ATTACK_COOLDOWN = 50;
+
+/**
+ * Damage multiplier matrix: DAMAGE_MATRIX[attackerType][targetType].
+ * 1.0 is the default. Siege does extra damage to buildings.
+ */
+const DAMAGE_MATRIX: Partial<Record<DamageType, Partial<Record<string, number>>>> = {
+  siege: { building: 2.0, unit: 0.5 },
+  melee: { building: 0.5 },
+};
 
 export class CombatSystem extends System {
   readonly name = 'CombatSystem';
@@ -51,7 +65,7 @@ export class CombatSystem extends System {
 
       const state = behavior?.state;
 
-      if (state === 'moving' || state === 'gathering') continue;
+      if (state === 'moving' || state === 'gathering' || state === 'constructing' || state === 'repairing') continue;
 
       if (combat.targetEntity !== null) {
         const targetHealth = world.getComponent(combat.targetEntity, Health);
@@ -127,6 +141,12 @@ export class CombatSystem extends System {
       if (enemy !== null) {
         combat.targetEntity = enemy;
       }
+    } else if (behavior === undefined) {
+      // Building with Combat (e.g. tower): range-only auto-acquire, no behavior change
+      const enemy = this.findNearestEnemy(world, entityId, candidates, combat.attackRange);
+      if (enemy !== null) {
+        combat.targetEntity = enemy;
+      }
     }
   }
 
@@ -185,7 +205,12 @@ export class CombatSystem extends System {
     if (!targetHealth) return;
 
     const armor = targetCombat ? targetCombat.totalArmor : 0;
-    const damage = Math.max(1, combat.totalAttack - armor);
+    let baseDamage = Math.max(1, combat.totalAttack - armor);
+
+    // Apply damage type multiplier
+    const targetCategory = world.hasComponent(combat.targetEntity, Building.type) ? 'building' : 'unit';
+    const multiplier = DAMAGE_MATRIX[combat.damageType]?.[targetCategory] ?? 1.0;
+    const damage = Math.max(1, Math.round(baseDamage * multiplier));
 
     targetHealth.takeDamage(damage);
     combat.cooldownRemaining = combat.attackCooldown;

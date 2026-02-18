@@ -41,14 +41,28 @@ export class MinimapRenderer {
     const scaleX = canvas.width / map.width;
     const scaleY = canvas.height / map.height;
 
-    // Terrain
+    const fog = this.game.fog;
+
+    // Terrain + fog overlay
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
+        const fogState = fog ? fog.getState(x, y) : 2;
+        if (fogState === 0) {
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(x * scaleX, y * scaleY, Math.ceil(scaleX), Math.ceil(scaleY));
+          continue;
+        }
+
         const terrain = map.getTerrain({ x, y });
         const info = TERRAIN_DATA[terrain];
         const color = '#' + info.color.toString(16).padStart(6, '0');
         ctx.fillStyle = color;
         ctx.fillRect(x * scaleX, y * scaleY, Math.ceil(scaleX), Math.ceil(scaleY));
+
+        if (fogState === 1) {
+          ctx.fillStyle = 'rgba(0,0,0,0.5)';
+          ctx.fillRect(x * scaleX, y * scaleY, Math.ceil(scaleX), Math.ceil(scaleY));
+        }
       }
     }
 
@@ -60,6 +74,13 @@ export class MinimapRenderer {
       const pos = world.getComponent(entityId, Position)!;
       const owner = world.getComponent(entityId, Owner)!;
       const building = world.getComponent(entityId, Building);
+
+      // Hide enemies in fog
+      if (fog && owner.playerId !== this.game.localPlayerId && owner.playerId !== 0) {
+        const tx = Math.floor(pos.tileX);
+        const ty = Math.floor(pos.tileY);
+        if (!fog.isVisible(tx, ty)) continue;
+      }
 
       ctx.fillStyle = PLAYER_MINIMAP_COLORS[owner.playerId] ?? '#ffffff';
       const size = building ? 3 : 2;
