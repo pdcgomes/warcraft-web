@@ -1,6 +1,6 @@
 import {
   Selectable, Owner, UnitType, Building, Health, Combat,
-  ResourceCarrier, Production,
+  ResourceCarrier, ResourceSource, Production,
   BUILDING_DATA, UNIT_DATA, getUnitDisplayName,
 } from '@warcraft-web/shared';
 import type { EntityId, OrderDefinition, BuildingKind, ProductionQueueItem } from '@warcraft-web/shared';
@@ -104,13 +104,26 @@ export class HUD {
     const combat = world.getComponent(entityId, Combat);
     const production = world.getComponent(entityId, Production);
     const owner = world.getComponent(entityId, Owner);
+    const resourceSource = world.getComponent(entityId, ResourceSource);
 
-    const name = building?.name ?? unitType?.name ?? 'Entity';
+    const RESOURCE_NAMES: Record<string, string> = { gold: 'Gold Mine', lumber: 'Forest' };
+    const name = resourceSource
+      ? (RESOURCE_NAMES[resourceSource.resourceType] ?? 'Resource')
+      : (building?.name ?? unitType?.name ?? 'Entity');
+
+    const isNeutral = owner !== undefined && owner.playerId === 0;
     const isOwn = owner !== undefined && owner.playerId === this.game.localPlayerId;
-    const factionLabel = !isOwn && owner ? ` (${owner.faction})` : '';
+    const factionLabel = !isOwn && !isNeutral && owner ? ` (${owner.faction})` : '';
     this.nameEl.textContent = name + factionLabel;
 
     let statsHtml = '';
+
+    if (resourceSource) {
+      const color = resourceSource.resourceType === 'gold' ? '#ffd700' : '#8b6914';
+      statsHtml += `<div style="font-size:12px;color:${color};margin-bottom:2px;">Remaining: ${resourceSource.amount}</div>`;
+      statsHtml += `<div style="font-size:11px;color:#a0a0c0;">Gatherers: ${resourceSource.currentGatherers}/${resourceSource.maxGatherers}</div>`;
+    }
+
     if (health) {
       const ratio = health.current / health.max;
       statsHtml += `<div style="font-size:12px;color:#a0a0c0;margin-bottom:2px;">HP: ${health.current}/${health.max}</div>`;
