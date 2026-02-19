@@ -1,19 +1,25 @@
-import { Container, Graphics } from 'pixi.js';
-import { tileToScreen, TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from '@warcraft-web/shared';
+import { Container, Graphics, Sprite } from 'pixi.js';
+import { tileToScreen, TILE_WIDTH, TILE_HEIGHT, TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from '@warcraft-web/shared';
 import { TerrainType, TERRAIN_DATA } from '@warcraft-web/shared';
 import type { LocalGame } from '../game/LocalGame.js';
+import type { AssetLoader } from '../assets/AssetLoader.js';
+import { TERRAIN_ASSETS } from '../assets/AssetManifest.js';
+import { debugState } from '../debug/DebugState.js';
 
 /**
- * Renders the isometric tile map using colored diamond shapes (placeholder art).
+ * Renders the isometric tile map using sprite textures when available,
+ * falling back to colored diamond shapes (Graphics) otherwise.
  */
 export class TerrainRenderer {
   private readonly container: Container;
   private readonly game: LocalGame;
+  private readonly assetLoader: AssetLoader;
   private readonly terrainContainer: Container;
 
-  constructor(parentContainer: Container, game: LocalGame) {
+  constructor(parentContainer: Container, game: LocalGame, assetLoader: AssetLoader) {
     this.container = parentContainer;
     this.game = game;
+    this.assetLoader = assetLoader;
     this.terrainContainer = new Container();
     this.terrainContainer.label = 'terrain';
     this.container.addChildAt(this.terrainContainer, 0);
@@ -26,37 +32,80 @@ export class TerrainRenderer {
     this.terrainContainer.removeChildren();
 
     const map = this.game.gameMap;
+    const useSprites = !debugState.forceGraphics;
 
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
         const terrain = map.getTerrain({ x, y });
-        const info = TERRAIN_DATA[terrain];
         const screen = tileToScreen({ x, y });
 
-        const g = new Graphics();
-        g.poly([
-          screen.x, screen.y - TILE_HEIGHT_HALF,
-          screen.x + TILE_WIDTH_HALF, screen.y,
-          screen.x, screen.y + TILE_HEIGHT_HALF,
-          screen.x - TILE_WIDTH_HALF, screen.y,
-        ]);
-        g.fill(info.color);
+        let placed = false;
 
-        g.poly([
-          screen.x, screen.y - TILE_HEIGHT_HALF,
-          screen.x + TILE_WIDTH_HALF, screen.y,
-          screen.x, screen.y + TILE_HEIGHT_HALF,
-          screen.x - TILE_WIDTH_HALF, screen.y,
-        ]);
-        g.stroke({ width: 0.5, color: 0x000000, alpha: 0.15 });
+        if (useSprites) {
+          const variationIndex = ((x * 7 + y * 13) & 0x7fffffff) % 3;
+          const variations = TERRAIN_ASSETS[terrain];
+          if (variations) {
+            const texture = this.assetLoader.getTexture(variations[variationIndex]);
+            if (texture) {
+              const tileContainer = new Container();
+              tileContainer.x = screen.x;
+              tileContainer.y = screen.y;
 
-        if (terrain === TerrainType.Forest) {
-          this.drawTreeIcon(g, screen.x, screen.y - 4);
+              const sprite = new Sprite(texture);
+              sprite.anchor.set(0.5, 0.5);
+              sprite.width = TILE_WIDTH;
+              sprite.height = TILE_HEIGHT;
+              tileContainer.addChild(sprite);
+
+              const diamondMask = new Graphics();
+              diamondMask.poly([
+                0, -TILE_HEIGHT_HALF,
+                TILE_WIDTH_HALF, 0,
+                0, TILE_HEIGHT_HALF,
+                -TILE_WIDTH_HALF, 0,
+              ]);
+              diamondMask.fill(0xffffff);
+              tileContainer.addChild(diamondMask);
+              sprite.mask = diamondMask;
+
+              this.terrainContainer.addChild(tileContainer);
+              placed = true;
+            }
+          }
         }
 
-        this.terrainContainer.addChild(g);
+        if (!placed) {
+          this.drawFallbackTile(screen, terrain);
+        }
       }
     }
+  }
+
+  private drawFallbackTile(screen: { x: number; y: number }, terrain: TerrainType): void {
+    const info = TERRAIN_DATA[terrain];
+    const g = new Graphics();
+
+    g.poly([
+      screen.x, screen.y - TILE_HEIGHT_HALF,
+      screen.x + TILE_WIDTH_HALF, screen.y,
+      screen.x, screen.y + TILE_HEIGHT_HALF,
+      screen.x - TILE_WIDTH_HALF, screen.y,
+    ]);
+    g.fill(info.color);
+
+    g.poly([
+      screen.x, screen.y - TILE_HEIGHT_HALF,
+      screen.x + TILE_WIDTH_HALF, screen.y,
+      screen.x, screen.y + TILE_HEIGHT_HALF,
+      screen.x - TILE_WIDTH_HALF, screen.y,
+    ]);
+    g.stroke({ width: 0.5, color: 0x000000, alpha: 0.15 });
+
+    if (terrain === TerrainType.Forest) {
+      this.drawTreeIcon(g, screen.x, screen.y - 4);
+    }
+
+    this.terrainContainer.addChild(g);
   }
 
   private drawTreeIcon(g: Graphics, cx: number, cy: number): void {

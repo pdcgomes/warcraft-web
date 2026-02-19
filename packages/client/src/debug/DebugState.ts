@@ -28,6 +28,9 @@ export const debugState = {
   showBuildingNames: false,
   showResourceNames: false,
 
+  // -- Rendering --
+  forceGraphics: false,
+
   // -- Tuning --
   speedMultiplier: 1.0,
 

@@ -1,11 +1,14 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
   Position, Health, Owner, UnitType, Building,
   Selectable, ResourceSource, Combat,
   tileToScreen, getTileDepth,
 } from '@warcraft-web/shared';
-import type { EntityId, Point } from '@warcraft-web/shared';
+import type { EntityId, Point, FactionId } from '@warcraft-web/shared';
 import type { LocalGame } from '../game/LocalGame.js';
+import type { AssetLoader } from '../assets/AssetLoader.js';
+import { UNIT_ASSETS, BUILDING_ASSETS, RESOURCE_ASSETS } from '../assets/AssetManifest.js';
+import { debugState } from '../debug/DebugState.js';
 
 /** Color palette for players. */
 const PLAYER_COLORS: Record<number, number> = {
@@ -31,20 +34,21 @@ const UNIT_BODY_COLOR: Record<string, number> = {
 
 interface EntitySprite {
   container: Container;
-  body: Graphics;
+  body: Graphics | Sprite;
   healthBar: Graphics;
   selectionCircle: Graphics;
   label: Text;
 }
 
 /**
- * Renders units and buildings as colored shapes on the isometric map.
- * Manages sprite creation, update, and removal.
- * Supports smooth interpolation between simulation ticks.
+ * Renders units and buildings using sprite textures when available,
+ * falling back to colored shapes. Manages sprite creation, update,
+ * and removal with smooth interpolation between simulation ticks.
  */
 export class EntityRenderer {
   private readonly parentContainer: Container;
   private readonly game: LocalGame;
+  private readonly assetLoader: AssetLoader;
   private readonly entityContainer: Container;
   private sprites: Map<EntityId, EntitySprite> = new Map();
 
@@ -55,9 +59,10 @@ export class EntityRenderer {
    */
   readonly prevPositions: Map<EntityId, Point> = new Map();
 
-  constructor(parentContainer: Container, game: LocalGame) {
+  constructor(parentContainer: Container, game: LocalGame, assetLoader: AssetLoader) {
     this.parentContainer = parentContainer;
     this.game = game;
+    this.assetLoader = assetLoader;
     this.entityContainer = new Container();
     this.entityContainer.label = 'entities';
     this.entityContainer.sortableChildren = true;
@@ -153,19 +158,26 @@ export class EntityRenderer {
     selectionCircle.visible = false;
     container.addChild(selectionCircle);
 
-    const body = new Graphics();
     const building = world.getComponent(entityId, Building);
     const unitType = world.getComponent(entityId, UnitType);
     const resourceSource = world.getComponent(entityId, ResourceSource);
     const owner = world.getComponent(entityId, Owner);
     const playerColor = owner ? (PLAYER_COLORS[owner.playerId] ?? 0xffffff) : 0x888888;
 
-    if (building) {
-      this.drawBuilding(body, building, playerColor);
-    } else if (unitType) {
-      this.drawUnit(body, unitType, playerColor);
-    } else if (resourceSource) {
-      this.drawResource(body, resourceSource);
+    let body: Graphics | Sprite;
+    const useSprites = !debugState.forceGraphics;
+
+    if (useSprites) {
+      const texture = this.resolveTexture(building, unitType, resourceSource, owner?.faction);
+      if (texture) {
+        const s = new Sprite(texture);
+        this.configureSprite(s, building, unitType, resourceSource);
+        body = s;
+      } else {
+        body = this.createGraphicsBody(building, unitType, resourceSource, playerColor);
+      }
+    } else {
+      body = this.createGraphicsBody(building, unitType, resourceSource, playerColor);
     }
 
     container.addChild(body);
@@ -185,6 +197,80 @@ export class EntityRenderer {
     container.addChild(label);
 
     return { container, body, healthBar, selectionCircle, label };
+  }
+
+  private resolveTexture(
+    building: Building | undefined,
+    unitType: UnitType | undefined,
+    resourceSource: ResourceSource | undefined,
+    faction?: FactionId,
+  ) {
+    let path: string | undefined;
+
+    if (building) {
+      path = BUILDING_ASSETS[building.kind];
+    } else if (unitType) {
+      const key = (unitType.kind === 'worker' && faction === 'orcs') ? 'worker_orcs' : unitType.kind;
+      path = UNIT_ASSETS[key];
+    } else if (resourceSource) {
+      if (resourceSource.resourceType === 'gold') {
+        path = RESOURCE_ASSETS.gold_mine;
+      } else {
+        const variation = RESOURCE_ASSETS.tree_a;
+        path = variation;
+      }
+    }
+
+    if (!path) return null;
+    return this.assetLoader.getTexture(path);
+  }
+
+  /** Configure sprite anchor and scale based on entity type. */
+  private configureSprite(
+    s: Sprite,
+    building: Building | undefined,
+    unitType: UnitType | undefined,
+    resourceSource: ResourceSource | undefined,
+  ): void {
+    if (building) {
+      s.anchor.set(0.5, 0.6);
+      const targetWidth = building.tileWidth * 40;
+      const scale = targetWidth / s.texture.width;
+      s.scale.set(scale);
+    } else if (unitType) {
+      s.anchor.set(0.5, 0.85);
+      const targetHeight = 36;
+      const scale = targetHeight / s.texture.height;
+      s.scale.set(scale);
+    } else if (resourceSource) {
+      s.anchor.set(0.5, 0.9);
+      if (resourceSource.resourceType === 'gold') {
+        const targetWidth = 64;
+        const scale = targetWidth / s.texture.width;
+        s.scale.set(scale);
+      } else {
+        const targetHeight = 48;
+        const scale = targetHeight / s.texture.height;
+        s.scale.set(scale);
+      }
+    }
+  }
+
+  private createGraphicsBody(
+    building: Building | undefined,
+    unitType: UnitType | undefined,
+    resourceSource: ResourceSource | undefined,
+    playerColor: number,
+  ): Graphics {
+    const g = new Graphics();
+    if (building) {
+      this.drawBuilding(g, building, playerColor);
+    } else if (unitType) {
+      this.drawUnit(g, unitType, playerColor);
+    } else if (resourceSource) {
+      this.drawResource(g, resourceSource);
+    }
+    return g;
   }
 
   private drawUnit(g: Graphics, unitType: { kind: string }, playerColor: number): void {

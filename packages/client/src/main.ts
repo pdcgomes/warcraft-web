@@ -11,6 +11,7 @@ import { NetworkGame } from './game/NetworkGame.js';
 import { debugState } from './debug/DebugState.js';
 import { DebugPanel } from './debug/DebugPanel.js';
 import { DebugRenderer } from './debug/DebugRenderer.js';
+import { AssetLoader } from './assets/AssetLoader.js';
 
 const SERVER_URL = `ws://${location.hostname}:8080`;
 
@@ -28,13 +29,16 @@ async function main() {
 
   container.insertBefore(app.canvas, container.firstChild);
 
+  const assetLoader = new AssetLoader();
+  await assetLoader.loadAll();
+
   // Menu system
   const mainMenu = new MainMenu();
   const lobbyScreen = new LobbyScreen();
 
   mainMenu.onSinglePlayer = () => {
     mainMenu.hide();
-    startSinglePlayer(app, container);
+    startSinglePlayer(app, container, assetLoader);
   };
 
   mainMenu.onMultiplayer = () => {
@@ -50,15 +54,15 @@ async function main() {
 
   lobbyScreen.onGameStart = (msg, playerId, ws) => {
     const faction = msg.players.find(p => p.id === playerId)?.faction ?? 'humans';
-    startMultiplayer(app, container, playerId, faction as 'humans' | 'orcs', ws);
+    startMultiplayer(app, container, playerId, faction as 'humans' | 'orcs', ws, assetLoader);
   };
 }
 
-function startSinglePlayer(app: Application, container: HTMLElement): void {
+function startSinglePlayer(app: Application, container: HTMLElement, assetLoader: AssetLoader): void {
   const localGame = new LocalGame();
   localGame.init();
 
-  const renderer = new GameRenderer(app, localGame);
+  const renderer = new GameRenderer(app, localGame, assetLoader);
   renderer.centerOn(localGame.spawnScreen);
 
   const inputManager = new InputManager(app, renderer, localGame);
@@ -163,11 +167,12 @@ function startMultiplayer(
   playerId: number,
   faction: 'humans' | 'orcs',
   ws: WebSocket,
+  assetLoader: AssetLoader,
 ): void {
   const netGame = new NetworkGame(playerId, faction, ws);
   netGame.init();
 
-  const renderer = new GameRenderer(app, netGame as any);
+  const renderer = new GameRenderer(app, netGame as any, assetLoader);
   renderer.centerOn(netGame.spawnScreen);
 
   const inputManager = new InputManager(app, renderer, netGame as any);
