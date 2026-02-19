@@ -40,6 +40,9 @@ export class DebugPanel {
         }
       }
 
+      const rendering = pane.addFolder({ title: 'Rendering' });
+      rendering.addBinding(debugState, 'forceGraphics', { label: 'Force Graphics' });
+
       const tuning = pane.addFolder({ title: 'Tuning' });
       tuning.addBinding(debugState, 'speedMultiplier', {
         label: 'Speed ×',

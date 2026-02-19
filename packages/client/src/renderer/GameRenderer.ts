@@ -5,7 +5,9 @@ import { TerrainRenderer } from './TerrainRenderer.js';
 import { EntityRenderer } from './EntityRenderer.js';
 import { MinimapRenderer } from './MinimapRenderer.js';
 import { FogRenderer } from './FogRenderer.js';
+import { EffectsManager } from '../effects/EffectsManager.js';
 import type { LocalGame } from '../game/LocalGame.js';
+import type { AssetLoader } from '../assets/AssetLoader.js';
 
 /**
  * Manages the PixiJS stage, camera/viewport (pan, zoom).
@@ -20,6 +22,7 @@ export class GameRenderer {
 
   readonly terrainRenderer: TerrainRenderer;
   readonly entityRenderer: EntityRenderer;
+  readonly effectsManager: EffectsManager;
   readonly minimapRenderer: MinimapRenderer;
   readonly fogRenderer: FogRenderer;
 
@@ -37,15 +40,20 @@ export class GameRenderer {
   /** World-pixel bounding box of the full tile map (computed once). */
   private mapBounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
 
-  constructor(app: Application, game: LocalGame) {
+  constructor(app: Application, game: LocalGame, assetLoader: AssetLoader) {
     this.app = app;
     this.game = game;
 
     this.worldContainer = new Container();
     app.stage.addChild(this.worldContainer);
 
-    this.terrainRenderer = new TerrainRenderer(this.worldContainer, game);
-    this.entityRenderer = new EntityRenderer(this.worldContainer, game);
+    this.terrainRenderer = new TerrainRenderer(this.worldContainer, game, assetLoader);
+    this.entityRenderer = new EntityRenderer(this.worldContainer, game, assetLoader);
+
+    this.effectsManager = new EffectsManager(this.worldContainer, game, app.renderer);
+    this.worldContainer.addChild(this.effectsManager.effectsContainer);
+    this.worldContainer.addChild(this.effectsManager.glowContainer);
+
     this.fogRenderer = new FogRenderer(this.worldContainer, game);
     this.minimapRenderer = new MinimapRenderer(game, this);
 
@@ -107,6 +115,7 @@ export class GameRenderer {
     this.worldContainer.scale.set(this.zoom);
 
     this.entityRenderer.update(alpha);
+    this.effectsManager.update(this.app.ticker.deltaMS / 1000);
     this.fogRenderer.update();
     this.minimapRenderer.render();
   }
