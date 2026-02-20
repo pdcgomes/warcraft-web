@@ -114,9 +114,10 @@ export class GameRenderer {
     this.worldContainer.y = this.cameraY;
     this.worldContainer.scale.set(this.zoom);
 
+    const dt = this.app.ticker.deltaMS / 1000;
     this.entityRenderer.update(alpha);
-    this.effectsManager.update(this.app.ticker.deltaMS / 1000);
-    this.fogRenderer.update();
+    this.effectsManager.update(dt);
+    this.fogRenderer.update(dt);
     this.minimapRenderer.render();
   }
 
