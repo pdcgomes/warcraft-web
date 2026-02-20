@@ -23,6 +23,7 @@ import { DefenseAdvisor } from './advisors/DefenseAdvisor.js';
 import { ScoutAdvisor } from './advisors/ScoutAdvisor.js';
 import { DefendTask } from './tasks/DefendTask.js';
 import { GatherTask } from './tasks/GatherTask.js';
+import { AttackTask } from './tasks/AttackTask.js';
 
 const TACTICAL_INTERVAL = 5;
 const THREAT_RADIUS = 10000;
@@ -131,8 +132,10 @@ export class AIController {
     const acceptedLabels: string[] = [];
     const rankedDebug: ProposalDebugEntry[] = [];
 
+    const acceptedDomains = new Set<string>();
     for (const item of allProposals) {
-      const isAccepted = accepted < maxNewTasks && !this.hasDomainTask(item.proposal.domain);
+      const dominated = acceptedDomains.has(item.proposal.domain);
+      const isAccepted = accepted < maxNewTasks && !dominated;
 
       rankedDebug.push({
         domain: item.proposal.domain,
@@ -147,6 +150,7 @@ export class AIController {
         const task = item.proposal.createTask();
         this.activeTasks.push(task);
         acceptedLabels.push(item.proposal.action);
+        acceptedDomains.add(item.proposal.domain);
         accepted++;
       }
     }
@@ -226,6 +230,19 @@ export class AIController {
         const resourceId = view.knownResourceNodes[0];
         this.activeTasks.push(new GatherTask(workerId, resourceId));
         idleReassigned++;
+      }
+    }
+
+    if (view.idleMilitary.length >= 2 && (view.knownEnemyBuildings.length > 0 || view.knownEnemyUnits.length > 0)) {
+      const hasActiveAttack = this.activeTasks.some(
+        t => t.domain === 'military' && t instanceof AttackTask && t.status === 'active',
+      );
+      if (!hasActiveAttack) {
+        const targetEntity = view.knownEnemyBuildings[0] ?? view.knownEnemyUnits[0];
+        const targetPos = ctx.world.getComponent(targetEntity, Position);
+        const pos = targetPos ? targetPos.toPoint() : view.baseCenter;
+        this.activeTasks.push(new AttackTask([...view.idleMilitary], pos, targetEntity));
+        idleReassigned += view.idleMilitary.length;
       }
     }
 
