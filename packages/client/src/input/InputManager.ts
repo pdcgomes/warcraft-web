@@ -10,6 +10,7 @@ import {
 import type { EntityId, OrderId, OrderDefinition, UnitKind, BuildingKind, EventSender, Point } from '@warcraft-web/shared';
 import type { GameRenderer } from '../renderer/GameRenderer.js';
 import type { LocalGame } from '../game/LocalGame.js';
+import type { EffectsManager } from '../effects/EffectsManager.js';
 import { SelectionBox } from '../ui/SelectionBox.js';
 import { debugState } from '../debug/DebugState.js';
 
@@ -345,12 +346,14 @@ export class InputManager {
 
     if (!this.game.gameMap.isAreaBuildable({ x: tileX, y: tileY }, data.tileWidth, data.tileHeight)) {
       this.game.eventLog.push('order_confirmed', { key: 'system', label: 'System' }, 'Cannot build here', this.game.world.tick);
+      this.orderMarkerAtTile(tileX, tileY, 'reject');
       return;
     }
 
     const pid = this.game.localPlayerId;
     if (!this.game.playerResources.canAfford(pid, data.cost)) {
       this.game.eventLog.push('order_confirmed', { key: 'system', label: 'System' }, 'Not enough resources', this.game.world.tick);
+      this.orderMarkerAtTile(tileX, tileY, 'reject');
       return;
     }
 
@@ -474,7 +477,13 @@ export class InputManager {
           const targetResource = world.getComponent(targetEntity, ResourceSource);
           if (targetResource) {
             this.commandGather(units, targetEntity);
+          } else {
+            const tile = screenToTile(worldPos);
+            this.orderMarkerAtTile(Math.round(tile.x), Math.round(tile.y), 'reject');
           }
+        } else {
+          const tile = screenToTile(worldPos);
+          this.orderMarkerAtTile(Math.round(tile.x), Math.round(tile.y), 'reject');
         }
         break;
       }
@@ -484,7 +493,13 @@ export class InputManager {
           const targetOwner = world.getComponent(targetEntity, Owner);
           if (targetBuilding && targetOwner && targetOwner.playerId === this.game.localPlayerId) {
             this.commandRepair(units, targetEntity);
+          } else {
+            const tile = screenToTile(worldPos);
+            this.orderMarkerAtTile(Math.round(tile.x), Math.round(tile.y), 'reject');
           }
+        } else {
+          const tile = screenToTile(worldPos);
+          this.orderMarkerAtTile(Math.round(tile.x), Math.round(tile.y), 'reject');
         }
         break;
       }
@@ -614,6 +629,27 @@ export class InputManager {
     this.game.eventLog.push('order_confirmed', sender, orderName, this.game.world.tick);
   }
 
+  private get effects(): EffectsManager {
+    return this.renderer.effectsManager;
+  }
+
+  /** Spawn an order feedback marker at a world-pixel position. */
+  private orderMarkerAtWorld(wx: number, wy: number, kind: 'move' | 'attack' | 'patrol' | 'gather' | 'reject'): void {
+    this.effects.spawnOrderMarker(wx, wy, kind);
+  }
+
+  /** Spawn an order feedback marker at a tile position. */
+  private orderMarkerAtTile(tileX: number, tileY: number, kind: 'move' | 'attack' | 'patrol' | 'gather' | 'reject'): void {
+    const screen = tileToScreen({ x: tileX, y: tileY });
+    this.effects.spawnOrderMarker(screen.x, screen.y, kind);
+  }
+
+  /** Spawn an order feedback marker at an entity's position. */
+  private orderMarkerAtEntity(entityId: EntityId, kind: 'move' | 'attack' | 'patrol' | 'gather' | 'reject'): void {
+    const pos = this.game.world.getComponent(entityId, Position);
+    if (pos) this.orderMarkerAtTile(pos.tileX, pos.tileY, kind);
+  }
+
   // ---- Command implementations ----
 
   private clearAllStates(entityId: EntityId): void {
@@ -691,6 +727,7 @@ export class InputManager {
     }
 
     this.emitOrderConfirmed('Move', entities);
+    this.orderMarkerAtTile(goalTileX, goalTileY, 'move');
   }
 
   private commandAttack(entities: EntityId[], targetEntity: EntityId): void {
@@ -713,6 +750,7 @@ export class InputManager {
     }
 
     this.emitOrderConfirmed('Attack', entities);
+    this.orderMarkerAtEntity(targetEntity, 'attack');
   }
 
   private commandPatrol(entities: EntityId[], target: Point): void {
@@ -737,6 +775,7 @@ export class InputManager {
     }
 
     this.emitOrderConfirmed('Patrol', entities);
+    this.orderMarkerAtTile(Math.round(target.x / 1000), Math.round(target.y / 1000), 'patrol');
   }
 
   private commandGather(entities: EntityId[], targetEntity: EntityId): void {
@@ -766,6 +805,7 @@ export class InputManager {
     }
 
     this.emitOrderConfirmed('Gather', entities);
+    this.orderMarkerAtEntity(targetEntity, 'gather');
   }
 
   private commandStop(entities: EntityId[]): void {
@@ -805,6 +845,7 @@ export class InputManager {
     }
 
     this.emitOrderConfirmed('Repair', entities);
+    this.orderMarkerAtEntity(targetEntity, 'move');
   }
 
   // ---- Formation ----
