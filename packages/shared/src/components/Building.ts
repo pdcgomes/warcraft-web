@@ -32,6 +32,9 @@ export class Building implements Component {
   /** Supply provided by this building (e.g., farms) */
   supplyProvided: number;
 
+  /** Worker entity absorbed into the building during construction. */
+  builderId: number | null = null;
+
   constructor(params: {
     kind: BuildingKind;
     name: string;

@@ -2,7 +2,7 @@ import type { Application } from 'pixi.js';
 import {
   Position, Selectable, Owner, ResourceSource, Health, Building,
   Movement, ResourceCarrier, UnitType, Combat,
-  UnitBehavior,
+  UnitBehavior, Collider,
   getAvailableOrders, ORDER_DEFINITIONS,
   screenToTile, tileToScreen, toFixed, findPath,
   BUILDING_DATA, getBuildableBuildings,
@@ -659,6 +659,11 @@ export class InputManager {
 
     const behavior = world.getComponent(entityId, UnitBehavior);
     if (behavior) {
+      if (behavior.absorbed) {
+        behavior.absorbed = false;
+        const collider = world.getComponent(entityId, Collider);
+        if (collider) collider.isStatic = false;
+      }
       behavior.state = 'idle';
       behavior.returnState = null;
       behavior.constructingTarget = null;

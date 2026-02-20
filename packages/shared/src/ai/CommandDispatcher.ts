@@ -6,6 +6,7 @@ import { Position } from '../components/Position.js';
 import { Movement } from '../components/Movement.js';
 import { Combat } from '../components/Combat.js';
 import { UnitBehavior } from '../components/UnitBehavior.js';
+import { Collider } from '../components/Collider.js';
 import { ResourceCarrier } from '../components/ResourceCarrier.js';
 import { findPath } from '../map/Pathfinding.js';
 
@@ -18,6 +19,11 @@ export class CommandDispatcher {
   private clearUnit(entityId: EntityId): void {
     const behavior = this.world.getComponent(entityId, UnitBehavior);
     if (behavior) {
+      if (behavior.absorbed) {
+        behavior.absorbed = false;
+        const collider = this.world.getComponent(entityId, Collider);
+        if (collider) collider.isStatic = false;
+      }
       behavior.state = 'idle';
       behavior.returnState = null;
       behavior.constructingTarget = null;
