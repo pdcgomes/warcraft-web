@@ -276,9 +276,56 @@
     .pause-menu-btn:hover {
       background: #3a3a6e;
     }
+    #loading-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #0a0a1a 100%);
+      color: #e0d6a0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    #loading-screen h2 {
+      font-size: 24px;
+      color: #c8a82e;
+      text-shadow: 2px 2px 6px rgba(0,0,0,0.8);
+      margin-bottom: 24px;
+    }
+    #loading-bar-bg {
+      width: 280px;
+      height: 12px;
+      background: #1a1a2e;
+      border: 1px solid #c8a82e66;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    #loading-bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #c8a82e, #ffd700);
+      border-radius: 6px;
+      transition: width 0.15s ease;
+    }
+    #loading-text {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #888;
+    }
   </style>
 </head>
 <body>
+  <!-- Loading screen (visible on start, hidden when assets are ready) -->
+  <div id="loading-screen">
+    <h2>Loading...</h2>
+    <div id="loading-bar-bg">
+      <div id="loading-bar-fill"></div>
+    </div>
+    <p id="loading-text">0%</p>
+  </div>
+
   <!-- Main menu overlay -->
   <div id="main-menu" style="
     position:absolute; inset:0; z-index:100;
