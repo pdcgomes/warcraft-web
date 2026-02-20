@@ -7,6 +7,7 @@ import {
 import type { EntityId, Point, FactionId } from '@warcraft-web/shared';
 import type { LocalGame } from '../game/LocalGame.js';
 import type { AssetLoader } from '../assets/AssetLoader.js';
+import { debugState } from '../debug/DebugState.js';
 import { UNIT_ASSETS, BUILDING_ASSETS, RESOURCE_ASSETS } from '../assets/AssetManifest.js';
 import { debugState } from '../debug/DebugState.js';
 
@@ -119,10 +120,9 @@ export class EntityRenderer {
       sprite.container.y = screen.y;
       sprite.container.zIndex = getTileDepth({ x: renderTileX, y: renderTileY });
 
-      // Fog-of-war visibility: hide enemy entities in non-visible tiles
       const owner = world.getComponent(entityId, Owner);
       const fog = this.game.fog;
-      if (fog && owner && owner.playerId !== this.game.localPlayerId && owner.playerId !== 0) {
+      if (!debugState.disableFog && fog && owner && owner.playerId !== this.game.localPlayerId && owner.playerId !== 0) {
         const tileX = Math.floor(renderTileX);
         const tileY = Math.floor(renderTileY);
         sprite.container.visible = fog.isVisible(tileX, tileY);

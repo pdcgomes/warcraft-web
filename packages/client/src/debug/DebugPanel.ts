@@ -29,6 +29,7 @@ export class DebugPanel {
       vis.addBinding(debugState, 'showUnitNames', { label: 'Units' });
       vis.addBinding(debugState, 'showBuildingNames', { label: 'Buildings' });
       vis.addBinding(debugState, 'showResourceNames', { label: 'Resources' });
+      vis.addBinding(debugState, 'disableFog', { label: 'No Fog' });
 
       const visEl = (vis as unknown as { element: HTMLElement }).element;
       if (visEl) {

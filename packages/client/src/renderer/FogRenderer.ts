@@ -1,6 +1,7 @@
 import { Container, Sprite, Texture, Matrix } from 'pixi.js';
 import { TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from '@warcraft-web/shared';
 import type { LocalGame } from '../game/LocalGame.js';
+import { debugState } from '../debug/DebugState.js';
 
 const FOG_RES = 6;
 const BLUR_PASSES = 5;
@@ -98,6 +99,9 @@ export class FogRenderer {
   }
 
   update(dt: number): void {
+    this.container.visible = !debugState.disableFog;
+    if (debugState.disableFog) return;
+
     const fog = this.game.fog;
     if (!fog) return;
 
