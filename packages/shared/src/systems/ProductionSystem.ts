@@ -8,6 +8,7 @@ import type { UnitKind } from '../components/UnitType.js';
 import type { Point } from '../math/Point.js';
 import type { EntityId } from '../ecs/Entity.js';
 import type { GameEventLog } from '../game/GameEventLog.js';
+import { factionSender } from '../game/GameEventLog.js';
 import { getUnitDisplayName } from '../data/UnitData.js';
 
 /**
@@ -83,7 +84,7 @@ export class ProductionSystem extends System {
     const unitLabel = getUnitDisplayName(unitKind, owner.faction);
     this.eventLog.push(
       'training_complete',
-      { key: `entity:${buildingEntity}`, label: building.name },
+      factionSender(`entity:${buildingEntity}`, building.name, owner.faction),
       `${unitLabel} ready`,
       world.tick,
     );

@@ -31,7 +31,7 @@ export { Collider } from './components/Collider.js';
 export { PlayerResources } from './game/PlayerResources.js';
 export { ORDER_DEFINITIONS, UNIT_ORDERS, getAvailableOrders } from './game/Orders.js';
 export type { OrderId, OrderTargeting, OrderDefinition } from './game/Orders.js';
-export { GameEventLog } from './game/GameEventLog.js';
+export { GameEventLog, factionSender } from './game/GameEventLog.js';
 export type { GameEvent, GameEventType, EventSender } from './game/GameEventLog.js';
 export { FogOfWar } from './game/FogOfWar.js';
 
