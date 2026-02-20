@@ -1,4 +1,5 @@
-import type { Point } from '@warcraft-web/shared';
+import type { Point, AIDebugSnapshot } from '@warcraft-web/shared';
+import { createDefaultAIDebugSnapshot } from '@warcraft-web/shared';
 
 /**
  * Singleton debug state object.
@@ -41,6 +42,9 @@ export const debugState = {
 
   // -- Transient debug data --
   activePaths: [] as DebugPathEntry[],
+
+  // -- AI Debug (written by game loop from AIController.debug) --
+  aiDebug: createDefaultAIDebugSnapshot() as AIDebugSnapshot,
 };
 
 export type DebugState = typeof debugState;

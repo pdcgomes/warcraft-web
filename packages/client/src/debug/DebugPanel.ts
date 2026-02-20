@@ -56,10 +56,65 @@ export class DebugPanel {
       monitors.addBinding(debugState, 'entityCount', { readonly: true, label: 'Entities' });
       monitors.addBinding(debugState, 'tick', { readonly: true, label: 'Tick' });
 
+      this.buildAIFolder(pane);
+
       this.setVisible(false);
     } catch (err) {
       console.warn('[DebugPanel] failed to initialize tweakpane:', err);
     }
+  }
+
+  private buildAIFolder(pane: Record<string, Function>): void {
+    const ai = pane.addFolder({ title: 'AI', expanded: false });
+    const debug = debugState.aiDebug;
+
+    ai.addBinding(debug, 'enabled', { label: 'Enabled' });
+    ai.addBinding(debug, 'activePersonality', { readonly: true, label: 'Personality' });
+
+    const reflexFolder = ai.addFolder({ title: 'Reflexes', expanded: false });
+    reflexFolder.addBinding(debug.reflex, 'threatDetected', { readonly: true, label: 'Threat' });
+    reflexFolder.addBinding(debug.reflex, 'threatsNearBase', { readonly: true, label: 'Near base' });
+    reflexFolder.addBinding(debug.reflex, 'unitsUnderAttack', { readonly: true, label: 'Under attack' });
+    reflexFolder.addBinding(debug.reflex, 'defendTaskInjected', { readonly: true, label: 'Defend injected' });
+
+    const tacticalFolder = ai.addFolder({ title: 'Tactical', expanded: false });
+    tacticalFolder.addBinding(debug.tactical, 'lastRunTick', { readonly: true, label: 'Last run' });
+    tacticalFolder.addBinding(debug.tactical, 'idleUnitsReassigned', { readonly: true, label: 'Idle reassigned' });
+    tacticalFolder.addBinding(debug.tactical, 'failedTasksCleaned', { readonly: true, label: 'Failed cleaned' });
+
+    const strategicFolder = ai.addFolder({ title: 'Strategic', expanded: false });
+    strategicFolder.addBinding(debug.strategic, 'lastRunTick', { readonly: true, label: 'Last run' });
+
+    this.strategicTextTarget = { proposalText: '', taskText: '' };
+    strategicFolder.addBinding(this.strategicTextTarget, 'proposalText', {
+      readonly: true, label: 'Proposals', multiline: true, rows: 8,
+    });
+
+    const taskFolder = ai.addFolder({ title: 'Active Tasks', expanded: false });
+    taskFolder.addBinding(this.strategicTextTarget, 'taskText', {
+      readonly: true, label: 'Tasks', multiline: true, rows: 6,
+    });
+  }
+
+  private strategicTextTarget: { proposalText: string; taskText: string } = {
+    proposalText: '', taskText: '',
+  };
+
+  private updateAIText(): void {
+    const debug = debugState.aiDebug;
+
+    const lines: string[] = [];
+    for (const p of debug.strategic.rankedProposals) {
+      const marker = p.accepted ? ' ✓' : '';
+      lines.push(`[${p.domain}] ${p.action}  ${p.finalScore.toFixed(2)}${marker}`);
+    }
+    this.strategicTextTarget.proposalText = lines.join('\n') || '(none)';
+
+    const taskLines: string[] = [];
+    for (const t of debug.activeTasks) {
+      taskLines.push(`[${t.domain}] ${t.label}  ${t.status}`);
+    }
+    this.strategicTextTarget.taskText = taskLines.join('\n') || '(none)';
   }
 
   setVisible(visible: boolean): void {
@@ -71,6 +126,7 @@ export class DebugPanel {
   }
 
   refresh(): void {
+    this.updateAIText();
     this.pane?.refresh();
   }
 

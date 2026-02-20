@@ -151,6 +151,12 @@ function startSinglePlayer(app: Application, container: HTMLElement, assetLoader
       debugState.fps = Math.round(app.ticker.FPS);
       debugState.entityCount = localGame.world.query('Position').length;
       debugState.tick = localGame.world.tick;
+
+      const aiController = localGame.aiSystem.getController(2);
+      if (aiController) {
+        Object.assign(debugState.aiDebug, aiController.debug);
+      }
+
       debugPanel.refresh();
 
       debugState.activePaths = debugState.activePaths.filter(entry => {
