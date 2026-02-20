@@ -238,7 +238,7 @@ export class EntityRenderer {
       s.scale.set(scale);
     } else if (unitType) {
       s.anchor.set(0.5, 0.85);
-      const targetHeight = 36;
+      const targetHeight = 44;
       const scale = targetHeight / s.texture.height;
       s.scale.set(scale);
     } else if (resourceSource) {

@@ -31,8 +31,18 @@ async function main() {
 
   container.insertBefore(app.canvas, container.firstChild);
 
+  // Loading screen
+  const loadingScreen = document.getElementById('loading-screen')!;
+  const loadingBarFill = document.getElementById('loading-bar-fill')!;
+  const loadingText = document.getElementById('loading-text')!;
+
   const assetLoader = new AssetLoader();
-  await assetLoader.loadAll();
+  await assetLoader.loadAll((progress) => {
+    const pct = Math.round(progress * 100);
+    loadingBarFill.style.width = `${pct}%`;
+    loadingText.textContent = `${pct}%`;
+  });
+  loadingScreen.style.display = 'none';
 
   // Menu system
   const mainMenu = new MainMenu();
