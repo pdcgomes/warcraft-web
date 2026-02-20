@@ -7,8 +7,9 @@ import {
   PlayerResources, GameEventLog, FogOfWar,
   UNIT_DATA, BUILDING_DATA, meetsPrerequisites,
   Combat,
+  AISystem, AI_PRESETS,
 } from '@warcraft-web/shared';
-import type { EntityId, UnitKind, FactionId, BuildingKind, Point } from '@warcraft-web/shared';
+import type { EntityId, UnitKind, FactionId, BuildingKind, Point, AIGameInterface } from '@warcraft-web/shared';
 import { EntityFactory } from './EntityFactory.js';
 
 const TICK_MS = 100;
@@ -17,7 +18,7 @@ const TICK_MS = 100;
  * Runs a local single-player game session.
  * Creates the world, registers systems, spawns initial entities, and runs the game loop.
  */
-export class LocalGame {
+export class LocalGame implements AIGameInterface {
   readonly world: World = new World();
   gameMap!: GameMap;
 
@@ -39,6 +40,8 @@ export class LocalGame {
 
   /** Game-over state: null while playing, or the winning player's ID. */
   winner: number | null = null;
+
+  aiSystem!: AISystem;
 
   private movementSystem!: MovementSystem;
   private patrolSystem!: PatrolSystem;
@@ -133,6 +136,10 @@ export class LocalGame {
 
     this.recalculateSupply();
     this.updateFog();
+
+    this.aiSystem = new AISystem(this.gameMap, this.playerResources, this);
+    this.world.addSystem(this.aiSystem);
+    this.aiSystem.addPlayer(2, 'orcs', AI_PRESETS.balanced);
   }
 
   /** Advance one simulation tick. */
@@ -225,10 +232,11 @@ export class LocalGame {
   }
 
   /** Place a new building on the map (incomplete, needs worker construction). */
-  placeBuilding(kind: BuildingKind, tileX: number, tileY: number): EntityId {
+  placeBuilding(kind: BuildingKind, tileX: number, tileY: number, playerId?: number, faction?: string): EntityId {
+    const pid = playerId ?? this.localPlayerId;
+    const fac = (faction ?? this.localFaction) as FactionId;
     const data = BUILDING_DATA[kind];
 
-    // Mark the area as unbuildable (set terrain to Stone so nothing else can overlap)
     for (let dy = 0; dy < data.tileHeight; dy++) {
       for (let dx = 0; dx < data.tileWidth; dx++) {
         this.gameMap.setTerrain({ x: tileX + dx, y: tileY + dy }, 4 /* TerrainType.Stone */);
@@ -238,7 +246,7 @@ export class LocalGame {
     const entity = EntityFactory.createBuilding(
       this.world, kind,
       { x: toFixed(tileX), y: toFixed(tileY) },
-      this.localPlayerId, this.localFaction,
+      pid, fac,
       false,
     );
 

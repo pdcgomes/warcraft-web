@@ -62,6 +62,20 @@ export { CollisionSystem } from './systems/CollisionSystem.js';
 export { RepairSystem } from './systems/RepairSystem.js';
 export { DeathCleanupSystem } from './systems/DeathCleanupSystem.js';
 
+// AI
+export { AISystem } from './ai/AISystem.js';
+export { AIController } from './ai/AIController.js';
+export { CommandDispatcher } from './ai/CommandDispatcher.js';
+export { buildWorldView } from './ai/AIWorldView.js';
+export type { AIWorldView, Threat } from './ai/AIWorldView.js';
+export type { AIPersonality } from './ai/AIPersonality.js';
+export { AI_PRESETS, domainWeight } from './ai/AIPersonality.js';
+export type { AIGameInterface } from './ai/AIGameInterface.js';
+export type { Advisor, Proposal } from './ai/advisors/Advisor.js';
+export type { Task, TaskContext } from './ai/tasks/Task.js';
+export type { AIDebugSnapshot, ProposalDebugEntry, AdvisorDebugEntry, TaskDebugEntry } from './ai/AIDebugState.js';
+export { createDefaultAIDebugSnapshot } from './ai/AIDebugState.js';
+
 // Map
 export { TerrainType, TERRAIN_DATA } from './map/Terrain.js';
 export type { TerrainInfo } from './map/Terrain.js';
