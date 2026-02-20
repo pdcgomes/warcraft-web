@@ -76,6 +76,13 @@ export class EventLogPanel {
     const events = this.log.recent(VISIBLE_COUNT);
     this.container.innerHTML = '';
 
+    if (events.length === 0) {
+      this.container.style.display = 'none';
+      return;
+    }
+
+    this.container.style.display = '';
+
     for (const evt of events) {
       const color = this.colorForSender(evt.sender.key);
 
@@ -103,16 +110,27 @@ export class EventLogPanel {
   private updateFading(): void {
     const now = Date.now();
     const lines = this.container.querySelectorAll('.event-log-line');
+    let allFaded = true;
+
     for (const el of lines) {
       const line = el as HTMLElement;
       const ts = parseInt(line.dataset.timestamp ?? '0');
       const age = now - ts;
       if (age > FADE_AFTER_MS) {
         const fadeProgress = Math.min(1, (age - FADE_AFTER_MS) / 2000);
-        line.style.opacity = (1 - fadeProgress * 0.7).toString();
+        const opacity = 1 - fadeProgress;
+        if (opacity <= 0) {
+          line.style.display = 'none';
+        } else {
+          line.style.opacity = opacity.toString();
+          allFaded = false;
+        }
       } else {
         line.style.opacity = '1';
+        allFaded = false;
       }
     }
+
+    this.container.style.display = (lines.length === 0 || allFaded) ? 'none' : '';
   }
 }
