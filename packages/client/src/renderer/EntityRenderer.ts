@@ -1,7 +1,7 @@
-import { Container, Graphics, Sprite, Text } from 'pixi.js';
+import { Container, Graphics, GraphicsContext, Sprite, Text } from 'pixi.js';
 import {
   Position, Health, Owner, UnitType, Building, Movement,
-  Selectable, ResourceSource, Combat,
+  Selectable, ResourceSource, Combat, UnitBehavior,
   tileToScreen, getTileDepth,
 } from '@warcraft-web/shared';
 import type { EntityId, Point, FactionId } from '@warcraft-web/shared';
@@ -34,6 +34,7 @@ const UNIT_BODY_COLOR: Record<string, number> = {
 
 interface EntitySprite {
   container: Container;
+  shadow: Graphics | null;
   body: Graphics | Sprite;
   healthBar: Graphics;
   selectionCircle: Graphics;
@@ -50,6 +51,7 @@ export class EntityRenderer {
   private readonly game: LocalGame;
   private readonly assetLoader: AssetLoader;
   private readonly entityContainer: Container;
+  private readonly unitShadowCtx: GraphicsContext;
   private sprites: Map<EntityId, EntitySprite> = new Map();
 
   /**
@@ -67,6 +69,10 @@ export class EntityRenderer {
     this.entityContainer.label = 'entities';
     this.entityContainer.sortableChildren = true;
     this.parentContainer.addChild(this.entityContainer);
+
+    this.unitShadowCtx = new GraphicsContext()
+      .ellipse(0, 3, 12, 6)
+      .fill({ color: 0x000000, alpha: 0.25 });
   }
 
   /**
@@ -128,6 +134,12 @@ export class EntityRenderer {
 
       sprite.container.zIndex = getTileDepth({ x: renderTileX, y: renderTileY });
 
+      const behavior = world.getComponent(entityId, UnitBehavior);
+      if (behavior?.absorbed) {
+        sprite.container.visible = false;
+        continue;
+      }
+
       const owner = world.getComponent(entityId, Owner);
       const fog = this.game.fog;
       if (!debugState.disableFog && fog && owner && owner.playerId !== this.game.localPlayerId && owner.playerId !== 0) {
@@ -172,6 +184,12 @@ export class EntityRenderer {
     const owner = world.getComponent(entityId, Owner);
     const playerColor = owner ? (PLAYER_COLORS[owner.playerId] ?? 0xffffff) : 0x888888;
 
+    let shadow: Graphics | null = null;
+    if (unitType) {
+      shadow = new Graphics(this.unitShadowCtx);
+      container.addChild(shadow);
+    }
+
     let body: Graphics | Sprite;
     const useSprites = !debugState.forceGraphics;
 
@@ -204,7 +222,7 @@ export class EntityRenderer {
     label.visible = false;
     container.addChild(label);
 
-    return { container, body, healthBar, selectionCircle, label };
+    return { container, shadow, body, healthBar, selectionCircle, label };
   }
 
   private resolveTexture(
@@ -354,6 +372,9 @@ export class EntityRenderer {
     let nearestDist = Infinity;
 
     for (const entityId of entities) {
+      const behavior = world.getComponent(entityId, UnitBehavior);
+      if (behavior?.absorbed) continue;
+
       const pos = world.getComponent(entityId, Position)!;
       const sel = world.getComponent(entityId, Selectable)!;
       const screen = tileToScreen({ x: pos.tileX, y: pos.tileY });

@@ -45,6 +45,9 @@ export class UnitBehavior implements Component {
   /** Entity ID of the building this worker is repairing, or null. */
   repairTarget: number | null = null;
 
+  /** True while the worker is inside a building under construction. */
+  absorbed: boolean = false;
+
   constructor(state: BehaviorState = 'idle') {
     this.state = state;
   }
