@@ -1,7 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import {
   Position, Collider, UnitBehavior, UnitType, Building,
-  ResourceSource, Movement, tileToScreen,
+  ResourceSource, Movement, Owner, tileToScreen,
 } from '@warcraft-web/shared';
 import type { EntityId, Point } from '@warcraft-web/shared';
 import type { LocalGame } from '../game/LocalGame.js';
@@ -85,25 +85,33 @@ export class DebugRenderer {
     this.pathGraphics.clear();
     if (!debugState.showPaths) return;
 
-    for (const entry of debugState.activePaths) {
-      const world = this.game.world;
-      const pos = world.getComponent(entry.entityId, Position);
-      if (!pos) continue;
+    const world = this.game.world;
+    const entities = world.query(Position.type, Movement.type);
 
-      const startScreen = this.interpolatedScreen(entry.entityId, pos, alpha);
+    for (const entityId of entities) {
+      const mov = world.getComponent(entityId, Movement)!;
+      if (!mov.isMoving || mov.path.length === 0) continue;
+
+      const pos = world.getComponent(entityId, Position)!;
+      const owner = world.getComponent(entityId, Owner);
+      const isLocal = owner && owner.playerId === this.game.localPlayerId;
+      const lineColor = isLocal ? 0x00ff88 : 0xff6644;
+      const dotColor = isLocal ? 0xffff00 : 0xff9944;
+
+      const startScreen = this.interpolatedScreen(entityId, pos, alpha);
       this.pathGraphics.moveTo(startScreen.x, startScreen.y);
 
-      for (const node of entry.path) {
+      const remaining = mov.path.slice(mov.pathIndex);
+      for (const node of remaining) {
         const screen = tileToScreen({ x: node.x / 1000, y: node.y / 1000 });
         this.pathGraphics.lineTo(screen.x, screen.y);
       }
+      this.pathGraphics.stroke({ width: 1.5, color: lineColor, alpha: 0.7 });
 
-      this.pathGraphics.stroke({ width: 1.5, color: 0x00ff88, alpha: 0.7 });
-
-      for (const node of entry.path) {
+      for (const node of remaining) {
         const screen = tileToScreen({ x: node.x / 1000, y: node.y / 1000 });
         this.pathGraphics.circle(screen.x, screen.y, 2.5);
-        this.pathGraphics.fill({ color: 0xffff00, alpha: 0.8 });
+        this.pathGraphics.fill({ color: dotColor, alpha: 0.8 });
       }
     }
   }
@@ -155,6 +163,7 @@ export class DebugRenderer {
         const pos = world.getComponent(entityId, Position)!;
         const behavior = world.getComponent(entityId, UnitBehavior)!;
         const ut = world.getComponent(entityId, UnitType);
+        const owner = world.getComponent(entityId, Owner);
         const screen = this.interpolatedScreen(entityId, pos, alpha);
 
         const label = this.getOrCreateLabel(entityId);
@@ -162,7 +171,8 @@ export class DebugRenderer {
         if (showName && ut) lines.push(ut.name);
         if (showState) lines.push(behavior.state);
         label.text = lines.join('\n');
-        label.style.fill = 0x00ff88;
+        const isLocal = owner && owner.playerId === this.game.localPlayerId;
+        label.style.fill = isLocal ? 0x00ff88 : 0xff6644;
         label.x = screen.x;
         label.y = screen.y - 32;
         label.visible = true;
@@ -175,12 +185,14 @@ export class DebugRenderer {
         activeIds.add(entityId);
         const pos = world.getComponent(entityId, Position)!;
         const building = world.getComponent(entityId, Building)!;
+        const owner = world.getComponent(entityId, Owner);
         const screen = this.interpolatedScreen(entityId, pos, alpha);
 
         const label = this.getOrCreateLabel(entityId);
         const status = building.isComplete ? '' : ` (${Math.round(building.constructionRatio * 100)}%)`;
         label.text = building.name + status;
-        label.style.fill = 0xc8a82e;
+        const isLocal = owner && owner.playerId === this.game.localPlayerId;
+        label.style.fill = isLocal ? 0xc8a82e : 0xcc5533;
         label.x = screen.x;
         label.y = screen.y - 32;
         label.visible = true;

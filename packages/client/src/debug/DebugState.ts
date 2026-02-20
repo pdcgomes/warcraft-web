@@ -28,6 +28,7 @@ export const debugState = {
   showUnitNames: false,
   showBuildingNames: false,
   showResourceNames: false,
+  disableFog: false,
 
   // -- Rendering --
   forceGraphics: false,

@@ -4,6 +4,7 @@ import {
 } from '@warcraft-web/shared';
 import type { LocalGame } from '../game/LocalGame.js';
 import type { GameRenderer } from './GameRenderer.js';
+import { debugState } from '../debug/DebugState.js';
 
 const PLAYER_MINIMAP_COLORS: Record<number, string> = {
   0: '#888888',
@@ -46,7 +47,7 @@ export class MinimapRenderer {
     // Terrain + fog overlay
     for (let y = 0; y < map.height; y++) {
       for (let x = 0; x < map.width; x++) {
-        const fogState = fog ? fog.getState(x, y) : 2;
+        const fogState = debugState.disableFog ? 2 : (fog ? fog.getState(x, y) : 2);
         if (fogState === 0) {
           ctx.fillStyle = '#000000';
           ctx.fillRect(x * scaleX, y * scaleY, Math.ceil(scaleX), Math.ceil(scaleY));
@@ -75,8 +76,7 @@ export class MinimapRenderer {
       const owner = world.getComponent(entityId, Owner)!;
       const building = world.getComponent(entityId, Building);
 
-      // Hide enemies in fog
-      if (fog && owner.playerId !== this.game.localPlayerId && owner.playerId !== 0) {
+      if (!debugState.disableFog && fog && owner.playerId !== this.game.localPlayerId && owner.playerId !== 0) {
         const tx = Math.floor(pos.tileX);
         const ty = Math.floor(pos.tileY);
         if (!fog.isVisible(tx, ty)) continue;
