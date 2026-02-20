@@ -36,6 +36,11 @@ export class MovementSystem extends System {
 
       if (!mov.isMoving || mov.path.length === 0) continue;
 
+      if (mov.startDelay > 0) {
+        mov.startDelay--;
+        continue;
+      }
+
       const target = mov.path[mov.pathIndex];
       if (!target) {
         mov.clearPath();

@@ -21,7 +21,8 @@ export class EntityFactory {
     const entity = world.createEntity();
 
     world.addComponent(entity, new Position(pos.x, pos.y));
-    world.addComponent(entity, new Movement(data.speed));
+    const jitter = 1.0 + ((entity % 17) - 8) / 100;
+    world.addComponent(entity, new Movement(Math.round(data.speed * jitter)));
     world.addComponent(entity, new Health(data.hp));
     world.addComponent(entity, new Combat({
       attackDamage: data.attack,

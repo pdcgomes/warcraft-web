@@ -714,14 +714,15 @@ export class InputManager {
       const startTileX = Math.round(pos.x / 1000);
       const startTileY = Math.round(pos.y / 1000);
       const path = findPath(this.game.gameMap, { x: startTileX, y: startTileY }, { x: unitGoalX, y: unitGoalY });
+      const delay = entities.length > 1 ? (i % 3) : 0;
       if (path.length > 0) {
-        mov.setPath(path);
+        mov.setPath(path, delay);
         if (debugState.showPaths) {
           debugState.activePaths.push({ entityId, path: [...path] });
         }
       } else {
         const fallback = [{ x: unitGoalX * 1000, y: unitGoalY * 1000 }];
-        mov.setPath(fallback);
+        mov.setPath(fallback, delay);
         if (debugState.showPaths) {
           debugState.activePaths.push({ entityId, path: [...fallback] });
         }

@@ -21,13 +21,17 @@ export class Movement implements Component {
   /** Whether the unit is currently moving */
   isMoving: boolean = false;
 
+  /** Ticks to wait before beginning movement (reaction-time stagger) */
+  startDelay: number = 0;
+
   constructor(speed: number) {
     this.speed = speed;
   }
 
-  setPath(path: Point[]): void {
+  setPath(path: Point[], delay: number = 0): void {
     this.path = path;
     this.pathIndex = 0;
+    this.startDelay = delay;
     this.isMoving = path.length > 0;
     if (path.length > 0) {
       this.target = path[path.length - 1];
