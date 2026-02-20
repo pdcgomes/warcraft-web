@@ -14,6 +14,13 @@ const VISIBLE_ALPHA = 0;
 const FADE_RATE = 6;
 
 /**
+ * Extra tiles of solid fog added around the map so that the fog sprite
+ * fully covers the diamond-shaped halves of edge tiles that extend
+ * beyond the tile-grid origin.
+ */
+const PAD = 1;
+
+/**
  * Renders fog of war as a blurred overlay decoupled from the tile grid.
  *
  * Per-tile alpha values are interpolated smoothly over time so that
@@ -52,8 +59,8 @@ export class FogRenderer {
     const map = game.gameMap;
     this.mapW = map.width;
     this.mapH = map.height;
-    this.cw = map.width * FOG_RES;
-    this.ch = map.height * FOG_RES;
+    this.cw = (map.width + PAD * 2) * FOG_RES;
+    this.ch = (map.height + PAD * 2) * FOG_RES;
 
     this.tileAlpha = new Float32Array(this.mapW * this.mapH);
     this.tileAlpha.fill(UNEXPLORED_ALPHA);
@@ -64,6 +71,14 @@ export class FogRenderer {
     this.ctx = this.offscreen.getContext('2d')!;
 
     this.imageData = this.ctx.createImageData(this.cw, this.ch);
+
+    // Fill the entire canvas with solid fog so the padding border
+    // (which is never written by the per-tile loop) stays opaque.
+    const data = this.imageData.data;
+    for (let i = 3; i < data.length; i += 4) {
+      data[i] = UNEXPLORED_ALPHA;
+    }
+
     this.alphaBuf = new Uint8ClampedArray(this.cw * this.ch);
     this.tmpBuf = new Uint8ClampedArray(this.cw * this.ch);
 
@@ -76,7 +91,7 @@ export class FogRenderer {
       TILE_HEIGHT_HALF * s,
       -TILE_WIDTH_HALF * s,
       TILE_HEIGHT_HALF * s,
-      0, 0,
+      0, -PAD * 2 * TILE_HEIGHT_HALF,
     ).decompose(this.fogSprite);
 
     this.container.addChild(this.fogSprite);
@@ -104,8 +119,8 @@ export class FogRenderer {
         }
 
         const alpha = Math.round(tileAlpha[idx]);
-        const bx = tx * FOG_RES;
-        const by = ty * FOG_RES;
+        const bx = (tx + PAD) * FOG_RES;
+        const by = (ty + PAD) * FOG_RES;
         for (let py = 0; py < FOG_RES; py++) {
           let i = ((by + py) * cw + bx) * 4;
           for (let px = 0; px < FOG_RES; px++, i += 4) {
