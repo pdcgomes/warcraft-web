@@ -8,6 +8,7 @@ import {
   BUILDING_DATA, getBuildableBuildings,
 } from '@warcraft-web/shared';
 import type { EntityId, OrderId, OrderDefinition, UnitKind, BuildingKind, EventSender, Point } from '@warcraft-web/shared';
+import { factionSender } from '@warcraft-web/shared';
 import type { GameRenderer } from '../renderer/GameRenderer.js';
 import type { LocalGame } from '../game/LocalGame.js';
 import type { EffectsManager } from '../effects/EffectsManager.js';
@@ -613,15 +614,16 @@ export class InputManager {
 
   private senderForUnits(entities: EntityId[]): EventSender {
     const world = this.game.world;
+    const faction = this.game.localFaction;
 
     if (entities.length === 1) {
       const ut = world.getComponent(entities[0], UnitType);
       const label = ut?.name ?? 'Unit';
-      return { key: `entity:${entities[0]}`, label };
+      return factionSender(`entity:${entities[0]}`, label, faction);
     }
 
     const sorted = [...entities].sort((a, b) => a - b);
-    return { key: `group:${sorted.join(',')}`, label: `${entities.length} units` };
+    return factionSender(`group:${sorted.join(',')}`, `${entities.length} units`, faction);
   }
 
   private emitOrderConfirmed(orderName: string, entities: EntityId[]): void {

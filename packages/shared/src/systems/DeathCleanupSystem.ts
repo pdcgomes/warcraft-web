@@ -1,9 +1,11 @@
 import { System } from '../ecs/System.js';
 import type { World } from '../ecs/World.js';
 import { Health } from '../components/Health.js';
+import { Owner } from '../components/Owner.js';
 import { UnitType } from '../components/UnitType.js';
 import { Building } from '../components/Building.js';
 import type { GameEventLog } from '../game/GameEventLog.js';
+import { factionSender } from '../game/GameEventLog.js';
 
 /**
  * Cleans up dead entities that weren't already destroyed by the combat system.
@@ -36,11 +38,15 @@ export class DeathCleanupSystem extends System {
 
     const ut = world.getComponent(entityId, UnitType);
     const bld = world.getComponent(entityId, Building);
+    const owner = world.getComponent(entityId, Owner);
     const label = bld?.name ?? ut?.name ?? 'Entity';
+    const sender = owner
+      ? factionSender(`entity:${entityId}`, label, owner.faction)
+      : { key: `entity:${entityId}`, label };
 
     this.eventLog.push(
       'unit_killed',
-      { key: `entity:${entityId}`, label },
+      sender,
       'Destroyed',
       world.tick,
     );

@@ -36,6 +36,16 @@ export interface EventSender {
   readonly label: string;
 }
 
+const FACTION_TAGS: Record<string, string> = {
+  humans: 'Alliance',
+  orcs: 'Horde',
+};
+
+export function factionSender(key: string, label: string, faction: string): EventSender {
+  const tag = FACTION_TAGS[faction] ?? faction;
+  return { key, label: `[${tag}] ${label}` };
+}
+
 export interface GameEvent {
   /** Event category for filtering. */
   type: GameEventType;

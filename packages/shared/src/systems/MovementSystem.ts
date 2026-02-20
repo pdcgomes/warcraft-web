@@ -2,10 +2,12 @@ import { System } from '../ecs/System.js';
 import type { World } from '../ecs/World.js';
 import { Position } from '../components/Position.js';
 import { Movement } from '../components/Movement.js';
+import { Owner } from '../components/Owner.js';
 import { UnitBehavior } from '../components/UnitBehavior.js';
 import { UnitType } from '../components/UnitType.js';
 import { fpDistance } from '../math/FixedPoint.js';
 import type { GameEventLog } from '../game/GameEventLog.js';
+import { factionSender } from '../game/GameEventLog.js';
 
 /**
  * Moves entities along their path each tick.
@@ -73,10 +75,14 @@ export class MovementSystem extends System {
       behavior.state = 'idle';
       if (this.eventLog) {
         const ut = world.getComponent(entityId, UnitType);
+        const owner = world.getComponent(entityId, Owner);
         const label = ut?.name ?? 'Unit';
+        const sender = owner
+          ? factionSender(`entity:${entityId}`, label, owner.faction)
+          : { key: `entity:${entityId}`, label };
         this.eventLog.push(
           'order_completed',
-          { key: `entity:${entityId}`, label },
+          sender,
           'Arrived at destination',
           world.tick,
         );

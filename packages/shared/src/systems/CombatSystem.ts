@@ -10,6 +10,7 @@ import { UnitType } from '../components/UnitType.js';
 import { Building } from '../components/Building.js';
 import { fpDistance } from '../math/FixedPoint.js';
 import type { GameEventLog } from '../game/GameEventLog.js';
+import { factionSender } from '../game/GameEventLog.js';
 
 import type { DamageType } from '../components/Combat.js';
 
@@ -227,11 +228,15 @@ export class CombatSystem extends System {
 
     const ut = world.getComponent(targetEntity, UnitType);
     const bld = world.getComponent(targetEntity, Building);
+    const owner = world.getComponent(targetEntity, Owner);
     const label = bld?.name ?? ut?.name ?? 'Entity';
+    const sender = owner
+      ? factionSender(`entity:${targetEntity}`, label, owner.faction)
+      : { key: `entity:${targetEntity}`, label };
 
     this.eventLog.pushThrottled(
       'unit_under_attack',
-      { key: `entity:${targetEntity}`, label },
+      sender,
       'Under attack!',
       world.tick,
       UNDER_ATTACK_COOLDOWN,
