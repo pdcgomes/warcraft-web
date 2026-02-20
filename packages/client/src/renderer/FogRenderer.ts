@@ -1,12 +1,9 @@
-import { Container, Sprite, Texture, Matrix } from 'pixi.js';
+import { Container, Sprite, Texture, Matrix, BlurFilter } from 'pixi.js';
 import { TILE_WIDTH_HALF, TILE_HEIGHT_HALF } from '@warcraft-web/shared';
 import type { LocalGame } from '../game/LocalGame.js';
 import { debugState } from '../debug/DebugState.js';
 
-const FOG_RES = 6;
-const BLUR_PASSES = 5;
-const BLUR_RADIUS = 2;
-const KERNEL_SIZE = BLUR_RADIUS * 2 + 1;
+const FOG_RES = 4;
 
 const UNEXPLORED_ALPHA = 230;
 const EXPLORED_ALPHA = 128;
@@ -21,14 +18,17 @@ const FADE_RATE = 6;
  */
 const PAD = 1;
 
+/** GPU blur strength – roughly equivalent to the old 5-pass CPU box blur. */
+const BLUR_STRENGTH = 8;
+const BLUR_QUALITY = 4;
+
 /**
  * Renders fog of war as a blurred overlay decoupled from the tile grid.
  *
  * Per-tile alpha values are interpolated smoothly over time so that
  * fog transitions (explore, reveal, re-fog) feel gradual rather than
  * snapping. The interpolated values are rasterised into a small
- * offscreen canvas, box-blurred with a wide kernel for soft, rounded
- * edges, then displayed as a single isometric-transformed sprite.
+ * offscreen canvas, then a GPU BlurFilter produces soft, rounded edges.
  */
 export class FogRenderer {
   readonly container: Container;
@@ -43,17 +43,11 @@ export class FogRenderer {
   private readonly ch: number;
 
   private readonly imageData: ImageData;
-  private readonly alphaBuf: Uint8ClampedArray;
-  private readonly tmpBuf: Uint8ClampedArray;
 
   private readonly mapW: number;
   private readonly mapH: number;
   private readonly tileAlpha: Float32Array;
   private initialised = false;
-
-  /** Accumulated time since last fog texture update. */
-  private fogTimer = 0;
-  private static readonly UPDATE_INTERVAL = 1 / 20;
 
   constructor(parentContainer: Container, game: LocalGame) {
     this.game = game;
@@ -77,15 +71,10 @@ export class FogRenderer {
 
     this.imageData = this.ctx.createImageData(this.cw, this.ch);
 
-    // Fill the entire canvas with solid fog so the padding border
-    // (which is never written by the per-tile loop) stays opaque.
     const data = this.imageData.data;
     for (let i = 3; i < data.length; i += 4) {
       data[i] = UNEXPLORED_ALPHA;
     }
-
-    this.alphaBuf = new Uint8ClampedArray(this.cw * this.ch);
-    this.tmpBuf = new Uint8ClampedArray(this.cw * this.ch);
 
     this.fogTexture = Texture.from(this.offscreen);
     this.fogSprite = new Sprite(this.fogTexture);
@@ -99,6 +88,8 @@ export class FogRenderer {
       0, -PAD * 2 * TILE_HEIGHT_HALF,
     ).decompose(this.fogSprite);
 
+    this.fogSprite.filters = [new BlurFilter({ strength: BLUR_STRENGTH, quality: BLUR_QUALITY })];
+
     this.container.addChild(this.fogSprite);
   }
 
@@ -106,18 +97,13 @@ export class FogRenderer {
     this.container.visible = !debugState.disableFog;
     if (debugState.disableFog) return;
 
-    this.fogTimer += dt;
-    if (this.initialised && this.fogTimer < FogRenderer.UPDATE_INTERVAL) return;
-    const elapsed = this.fogTimer;
-    this.fogTimer = 0;
-
     const fog = this.game.fog;
     if (!fog) return;
 
     const { mapW, mapH, tileAlpha, cw, imageData } = this;
     const data = imageData.data;
 
-    const lerpFactor = 1 - Math.exp(-FADE_RATE * elapsed);
+    const lerpFactor = 1 - Math.exp(-FADE_RATE * dt);
 
     for (let ty = 0; ty < mapH; ty++) {
       for (let tx = 0; tx < mapW; tx++) {
@@ -147,47 +133,7 @@ export class FogRenderer {
     }
 
     this.initialised = true;
-    this.blurAlpha(data);
     this.ctx.putImageData(imageData, 0, 0);
     this.fogTexture.source.update();
-  }
-
-  /**
-   * Separable multi-pass box blur on the alpha channel.
-   * Uses a configurable radius for wider, softer edges.
-   */
-  private blurAlpha(data: Uint8ClampedArray): void {
-    const { cw: w, ch: h, alphaBuf: buf, tmpBuf: tmp } = this;
-    const len = w * h;
-
-    for (let i = 0; i < len; i++) buf[i] = data[i * 4 + 3];
-
-    for (let pass = 0; pass < BLUR_PASSES; pass++) {
-      for (let y = 0; y < h; y++) {
-        const row = y * w;
-        for (let x = 0; x < w; x++) {
-          let sum = 0;
-          for (let dx = -BLUR_RADIUS; dx <= BLUR_RADIUS; dx++) {
-            const nx = Math.max(0, Math.min(w - 1, x + dx));
-            sum += buf[row + nx];
-          }
-          tmp[row + x] = (sum / KERNEL_SIZE) | 0;
-        }
-      }
-
-      for (let y = 0; y < h; y++) {
-        const row = y * w;
-        for (let x = 0; x < w; x++) {
-          let sum = 0;
-          for (let dy = -BLUR_RADIUS; dy <= BLUR_RADIUS; dy++) {
-            const ny = Math.max(0, Math.min(h - 1, y + dy));
-            sum += tmp[ny * w + x];
-          }
-          buf[row + x] = (sum / KERNEL_SIZE) | 0;
-        }
-      }
-    }
-
-    for (let i = 0; i < len; i++) data[i * 4 + 3] = buf[i];
   }
 }
