@@ -1,6 +1,6 @@
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import {
-  Position, Health, Owner, UnitType, Building,
+  Position, Health, Owner, UnitType, Building, Movement,
   Selectable, ResourceSource, Combat,
   tileToScreen, getTileDepth,
 } from '@warcraft-web/shared';
@@ -117,6 +117,15 @@ export class EntityRenderer {
 
       sprite.container.x = screen.x;
       sprite.container.y = screen.y;
+
+      const mov = world.getComponent(entityId, Movement);
+      const unitType = world.getComponent(entityId, UnitType);
+      if (unitType && mov?.isMoving) {
+        const phase = (entityId * 2.39) % (Math.PI * 2);
+        const bob = Math.sin(performance.now() * 0.012 + phase) * 2;
+        sprite.container.y += bob;
+      }
+
       sprite.container.zIndex = getTileDepth({ x: renderTileX, y: renderTileY });
 
       const owner = world.getComponent(entityId, Owner);
@@ -238,7 +247,7 @@ export class EntityRenderer {
       s.scale.set(scale);
     } else if (unitType) {
       s.anchor.set(0.5, 0.85);
-      const targetHeight = 44;
+      const targetHeight = 56;
       const scale = targetHeight / s.texture.height;
       s.scale.set(scale);
     } else if (resourceSource) {
