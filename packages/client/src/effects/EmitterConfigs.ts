@@ -165,3 +165,91 @@ export const WATER_SPARKLE: EmitterConfig = {
   tint: 0xffffff,
   textureKey: 'square2',
 };
+
+// ---- Order feedback markers ----
+
+export const ORDER_MOVE_RING: EmitterConfig = {
+  count: [12, 12],
+  lifetime: [0.4, 0.55],
+  speed: [50, 60],
+  angle: [0, TAU],
+  gravity: 0,
+  alphaStart: 1,
+  alphaEnd: 0,
+  scaleStart: 1.2,
+  scaleEnd: 0.5,
+  tint: 0x44ee44,
+  textureKey: 'circle4',
+};
+
+export const ORDER_MOVE_CENTER: EmitterConfig = {
+  count: [1, 1],
+  lifetime: [0.35, 0.4],
+  speed: [0, 0],
+  angle: [0, 0],
+  gravity: 0,
+  alphaStart: 0.8,
+  alphaEnd: 0,
+  scaleStart: 1.5,
+  scaleEnd: 4,
+  tint: 0x44ee44,
+  textureKey: 'glow16',
+  additive: true,
+};
+
+export const ORDER_ATTACK_RING: EmitterConfig = {
+  count: [12, 12],
+  lifetime: [0.35, 0.5],
+  speed: [45, 55],
+  angle: [0, TAU],
+  gravity: 0,
+  alphaStart: 1,
+  alphaEnd: 0,
+  scaleStart: 1.2,
+  scaleEnd: 0.5,
+  tint: 0xff4444,
+  textureKey: 'circle4',
+};
+
+export const ORDER_ATTACK_CENTER: EmitterConfig = {
+  count: [1, 1],
+  lifetime: [0.3, 0.35],
+  speed: [0, 0],
+  angle: [0, 0],
+  gravity: 0,
+  alphaStart: 0.8,
+  alphaEnd: 0,
+  scaleStart: 1.5,
+  scaleEnd: 4,
+  tint: 0xff4444,
+  textureKey: 'glow16',
+  additive: true,
+};
+
+export const ORDER_GATHER_RING: EmitterConfig = {
+  count: [10, 10],
+  lifetime: [0.4, 0.55],
+  speed: [45, 55],
+  angle: [0, TAU],
+  gravity: 0,
+  alphaStart: 1,
+  alphaEnd: 0,
+  scaleStart: 1,
+  scaleEnd: 0.5,
+  tint: 0xffd700,
+  textureKey: 'square2',
+};
+
+export const ORDER_REJECT: EmitterConfig = {
+  count: [10, 12],
+  lifetime: [0.25, 0.4],
+  speed: [35, 60],
+  angle: [0, TAU],
+  gravity: 0,
+  alphaStart: 1,
+  alphaEnd: 0,
+  scaleStart: 1.2,
+  scaleEnd: 0.5,
+  tint: 0xff2222,
+  textureKey: 'square2',
+};

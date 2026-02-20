@@ -337,6 +337,70 @@ export class EffectsManager {
     }
   }
 
+  // ---- Order feedback markers ----
+
+  /**
+   * Spawn a visual marker at a world position to confirm or reject an order.
+   * Called from InputManager after issuing commands.
+   */
+  spawnOrderMarker(wx: number, wy: number, kind: 'move' | 'attack' | 'patrol' | 'gather' | 'reject'): void {
+    switch (kind) {
+      case 'move':
+      case 'patrol':
+        this.spawnRing(Configs.ORDER_MOVE_RING, wx, wy);
+        this.spawnBurst(Configs.ORDER_MOVE_CENTER, wx, wy);
+        break;
+      case 'attack':
+        this.spawnRing(Configs.ORDER_ATTACK_RING, wx, wy);
+        this.spawnBurst(Configs.ORDER_ATTACK_CENTER, wx, wy);
+        break;
+      case 'gather':
+        this.spawnRing(Configs.ORDER_GATHER_RING, wx, wy);
+        break;
+      case 'reject':
+        this.spawnBurst(Configs.ORDER_REJECT, wx, wy);
+        break;
+    }
+  }
+
+  /**
+   * Spawn particles in an evenly-spaced ring pattern (for order markers).
+   */
+  private spawnRing(config: EmitterConfig, wx: number, wy: number): void {
+    const pool = config.additive ? this.glowPool : this.normalPool;
+    const count = config.count[1];
+    const angleStep = (Math.PI * 2) / count;
+
+    for (let i = 0; i < count; i++) {
+      const p = pool.acquire();
+      if (!p) break;
+
+      const angle = angleStep * i;
+      const speed = lerp(config.speed[0], config.speed[1], Math.random());
+      const life = lerp(config.lifetime[0], config.lifetime[1], Math.random());
+
+      p.x = wx;
+      p.y = wy;
+      p.vx = Math.cos(angle) * speed;
+      p.vy = Math.sin(angle) * speed;
+      p.gravity = config.gravity;
+      p.life = life;
+      p.maxLife = life;
+      p.alphaStart = config.alphaStart;
+      p.alphaEnd = config.alphaEnd;
+      p.scaleStart = config.scaleStart;
+      p.scaleEnd = config.scaleEnd;
+
+      p.sprite.texture = this.textures[config.textureKey];
+      p.sprite.tint = config.tint;
+      p.sprite.blendMode = config.additive ? 'add' : 'normal';
+      p.sprite.x = wx;
+      p.sprite.y = wy;
+      p.sprite.alpha = config.alphaStart;
+      p.sprite.scale.set(config.scaleStart);
+    }
+  }
+
   // ---- Particle spawning & physics ----
 
   spawnBurst(config: EmitterConfig, wx: number, wy: number): void {
