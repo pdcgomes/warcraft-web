@@ -41,6 +41,9 @@ export class LocalGame implements AIGameInterface {
   /** Game-over state: null while playing, or the winning player's ID. */
   winner: number | null = null;
 
+  /** When true the simulation is suspended (menu open, etc.). */
+  paused = false;
+
   aiSystem!: AISystem;
 
   private movementSystem!: MovementSystem;
@@ -144,7 +147,7 @@ export class LocalGame implements AIGameInterface {
 
   /** Advance one simulation tick. */
   tick(): void {
-    if (this.winner !== null) return;
+    if (this.paused || this.winner !== null) return;
     this.world.step(TICK_MS);
     this.updateFog();
     this.checkVictory();

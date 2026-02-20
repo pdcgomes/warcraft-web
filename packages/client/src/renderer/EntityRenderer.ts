@@ -9,7 +9,6 @@ import type { LocalGame } from '../game/LocalGame.js';
 import type { AssetLoader } from '../assets/AssetLoader.js';
 import { debugState } from '../debug/DebugState.js';
 import { UNIT_ASSETS, BUILDING_ASSETS, RESOURCE_ASSETS } from '../assets/AssetManifest.js';
-import { debugState } from '../debug/DebugState.js';
 
 /** Color palette for players. */
 const PLAYER_COLORS: Record<number, number> = {

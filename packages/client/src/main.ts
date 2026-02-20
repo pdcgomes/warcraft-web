@@ -17,6 +17,8 @@ const SERVER_URL = `ws://${location.hostname}:8080`;
 
 async function main() {
   const container = document.getElementById('game-container')!;
+  const isRestart = sessionStorage.getItem('restart') === '1';
+  if (isRestart) sessionStorage.removeItem('restart');
 
   const app = new Application();
   await app.init({
@@ -46,6 +48,12 @@ async function main() {
     lobbyScreen.show();
     lobbyScreen.connect(SERVER_URL);
   };
+
+  if (isRestart) {
+    startSinglePlayer(app, container, assetLoader);
+  } else {
+    mainMenu.show();
+  }
 
   lobbyScreen.onBack = () => {
     lobbyScreen.hide();
@@ -83,7 +91,60 @@ function startSinglePlayer(app: Application, container: HTMLElement, assetLoader
     location.reload();
   });
 
+  // ---- Pause menu ----
+  const pauseOverlay = document.getElementById('pause-overlay')!;
+  const pauseConfirm = document.getElementById('pause-confirm')!;
+  const pauseConfirmMsg = document.getElementById('pause-confirm-msg')!;
+  const btnMenu = document.getElementById('btn-menu')!;
+  const btnResume = document.getElementById('btn-resume')!;
+  const btnRestart = document.getElementById('btn-restart')!;
+  const btnQuit = document.getElementById('btn-quit')!;
+  const btnConfirmYes = document.getElementById('btn-confirm-yes')!;
+  const btnConfirmNo = document.getElementById('btn-confirm-no')!;
+
+  let pendingConfirmAction: (() => void) | null = null;
+
+  function setPaused(paused: boolean): void {
+    localGame.paused = paused;
+    pauseOverlay.style.display = paused ? 'flex' : 'none';
+    pauseConfirm.style.display = 'none';
+    pendingConfirmAction = null;
+    lastTime = performance.now();
+    accumulator = 0;
+  }
+
+  function showConfirm(message: string, action: () => void): void {
+    pauseConfirmMsg.textContent = message;
+    pendingConfirmAction = action;
+    pauseConfirm.style.display = '';
+  }
+
+  btnMenu.addEventListener('click', () => setPaused(true));
+  btnResume.addEventListener('click', () => setPaused(false));
+  btnRestart.addEventListener('click', () => {
+    showConfirm('Restart the match? Current progress will be lost.', () => {
+      sessionStorage.setItem('restart', '1');
+      location.reload();
+    });
+  });
+  btnQuit.addEventListener('click', () => {
+    showConfirm('Quit to menu? Current progress will be lost.', () => {
+      location.reload();
+    });
+  });
+  btnConfirmYes.addEventListener('click', () => {
+    pendingConfirmAction?.();
+  });
+  btnConfirmNo.addEventListener('click', () => {
+    pauseConfirm.style.display = 'none';
+    pendingConfirmAction = null;
+  });
+
   window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (endgameShown) return;
+      setPaused(!localGame.paused);
+    }
     if (e.key === 'Tab') {
       e.preventDefault();
       debugState.enabled = !debugState.enabled;
