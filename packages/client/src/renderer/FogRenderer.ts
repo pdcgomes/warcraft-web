@@ -51,6 +51,10 @@ export class FogRenderer {
   private readonly tileAlpha: Float32Array;
   private initialised = false;
 
+  /** Accumulated time since last fog texture update. */
+  private fogTimer = 0;
+  private static readonly UPDATE_INTERVAL = 1 / 20;
+
   constructor(parentContainer: Container, game: LocalGame) {
     this.game = game;
     this.container = new Container();
@@ -102,13 +106,18 @@ export class FogRenderer {
     this.container.visible = !debugState.disableFog;
     if (debugState.disableFog) return;
 
+    this.fogTimer += dt;
+    if (this.initialised && this.fogTimer < FogRenderer.UPDATE_INTERVAL) return;
+    const elapsed = this.fogTimer;
+    this.fogTimer = 0;
+
     const fog = this.game.fog;
     if (!fog) return;
 
     const { mapW, mapH, tileAlpha, cw, imageData } = this;
     const data = imageData.data;
 
-    const lerpFactor = 1 - Math.exp(-FADE_RATE * dt);
+    const lerpFactor = 1 - Math.exp(-FADE_RATE * elapsed);
 
     for (let ty = 0; ty < mapH; ty++) {
       for (let tx = 0; tx < mapW; tx++) {
