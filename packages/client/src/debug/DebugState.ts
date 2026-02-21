@@ -22,6 +22,7 @@ export const debugState = {
   enabled: false,
 
   // -- Visualisation toggles --
+  showHudDebug: true,
   showPaths: false,
   showColliders: false,
   showBehaviorState: false,

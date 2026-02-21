@@ -7,6 +7,7 @@ import type { EntityId, OrderDefinition, BuildingKind, ProductionQueueItem } fro
 import type { LocalGame } from '../game/LocalGame.js';
 import type { GameRenderer } from '../renderer/GameRenderer.js';
 import type { InputManager } from '../input/InputManager.js';
+import { debugState } from '../debug/DebugState.js';
 
 function hpBarColor(ratio: number): string {
   if (ratio > 0.6) return '#4caf50';
@@ -27,6 +28,9 @@ export class HUD {
   private lumberEl: HTMLElement;
   private supplyEl: HTMLElement;
   private tickEl: HTMLElement;
+  private fpsEl: HTMLElement;
+  private entityEl: HTMLElement;
+  private debugGroup: HTMLElement;
   private nameEl: HTMLElement;
   private statsEl: HTMLElement;
   private actionPanel: HTMLElement;
@@ -43,6 +47,9 @@ export class HUD {
     this.lumberEl = document.getElementById('lumber-count')!;
     this.supplyEl = document.getElementById('supply-count')!;
     this.tickEl = document.getElementById('tick-count')!;
+    this.fpsEl = document.getElementById('fps-count')!;
+    this.entityEl = document.getElementById('entity-count')!;
+    this.debugGroup = document.getElementById('hud-debug-group')!;
     this.nameEl = document.getElementById('selected-name')!;
     this.statsEl = document.getElementById('selected-stats')!;
     this.actionPanel = document.getElementById('action-panel')!;
@@ -51,7 +58,10 @@ export class HUD {
   update(): void {
     this.updateResources();
     this.updateSelection();
-    this.updateTick();
+
+    const showDebug = debugState.showHudDebug;
+    this.debugGroup.style.display = showDebug ? '' : 'none';
+    if (showDebug) this.updateDebugInfo();
   }
 
   private updateResources(): void {
@@ -64,8 +74,10 @@ export class HUD {
     this.supplyEl.textContent = `${supply.used}/${supply.cap}`;
   }
 
-  private updateTick(): void {
+  private updateDebugInfo(): void {
     this.tickEl.textContent = `Tick: ${this.game.world.tick}`;
+    this.fpsEl.textContent = `FPS: ${Math.round(this.renderer.app.ticker.FPS)}`;
+    this.entityEl.textContent = `Entities: ${debugState.entityCount}`;
   }
 
   private updateSelection(): void {

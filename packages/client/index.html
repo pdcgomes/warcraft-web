@@ -64,10 +64,14 @@
     .resource-icon {
       width: 14px;
       height: 14px;
-      border-radius: 2px;
+      image-rendering: pixelated;
     }
-    .gold-icon { background: #ffd700; }
-    .lumber-icon { background: #8b4513; }
+    #hud-debug-group {
+      font-size: 12px;
+      color: #8888aa;
+    }
+    #fps-count { font-variant-numeric: tabular-nums; }
+    #tick-count { font-variant-numeric: tabular-nums; }
     #minimap-panel {
       width: 200px;
       height: 100%;
@@ -495,21 +499,23 @@
   <div id="game-container">
     <div id="resource-bar">
       <div class="resource-item">
-        <div class="resource-icon gold-icon"></div>
-        <span id="gold-count">0</span>
+        <img class="resource-icon" id="icon-gold" alt="Gold" title="Gold">
+        <span id="gold-count" title="Gold">0</span>
       </div>
       <div class="resource-item">
-        <div class="resource-icon lumber-icon"></div>
+        <img class="resource-icon" id="icon-lumber" alt="Lumber" title="Lumber">
         <span id="lumber-count">0</span>
       </div>
       <div class="resource-item">
         <span style="color:#a0c0ff;">Supply:</span>
         <span id="supply-count">0/0</span>
       </div>
-      <div class="resource-item" style="margin-left: auto;">
-        <span id="tick-count">Tick: 0</span>
-      </div>
-      <div class="resource-item">
+      <div style="margin-left:auto; display:flex; align-items:center; gap:12px;">
+        <div id="hud-debug-group" class="resource-item" style="display:none; gap:16px;">
+          <span id="fps-count">FPS: 0</span>
+          <span id="tick-count">Tick: 0</span>
+          <span id="entity-count">Entities: 0</span>
+        </div>
         <button id="btn-menu" style="
           background: #2a2a4e; color: #c8a82e; border: 1px solid #c8a82e66;
           border-radius: 3px; padding: 2px 10px; font-size: 11px; cursor: pointer;

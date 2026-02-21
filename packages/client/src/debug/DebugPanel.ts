@@ -23,6 +23,7 @@ export class DebugPanel {
       this.pane = pane as unknown as typeof this.pane;
 
       const vis = pane.addFolder({ title: 'Visualisation' });
+      vis.addBinding(debugState, 'showHudDebug', { label: 'HUD Debug' });
       vis.addBinding(debugState, 'showPaths', { label: 'Paths' });
       vis.addBinding(debugState, 'showColliders', { label: 'Colliders' });
       vis.addBinding(debugState, 'showBehaviorState', { label: 'Behavior' });

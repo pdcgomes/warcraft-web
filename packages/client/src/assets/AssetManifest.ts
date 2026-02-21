@@ -56,6 +56,11 @@ export const RESOURCE_ASSETS: Record<string, string> = {
   tree_c:    'assets/resources/tree_c.png',
 };
 
+export const UI_ASSETS: Record<string, string> = {
+  icon_gold:   'assets/ui/icon_gold.png',
+  icon_lumber: 'assets/ui/icon_lumber.png',
+};
+
 /** Collect every asset path for bulk preloading. */
 export function getAllAssetPaths(): string[] {
   const paths: string[] = [];
@@ -69,6 +74,9 @@ export function getAllAssetPaths(): string[] {
     if (path) paths.push(path);
   }
   for (const path of Object.values(RESOURCE_ASSETS)) {
+    paths.push(path);
+  }
+  for (const path of Object.values(UI_ASSETS)) {
     paths.push(path);
   }
   return paths;

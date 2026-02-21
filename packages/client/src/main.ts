@@ -14,6 +14,7 @@ import { debugState } from './debug/DebugState.js';
 import { DebugPanel } from './debug/DebugPanel.js';
 import { DebugRenderer } from './debug/DebugRenderer.js';
 import { AssetLoader } from './assets/AssetLoader.js';
+import { UI_ASSETS } from './assets/AssetManifest.js';
 
 const SERVER_URL = `ws://${location.hostname}:8080`;
 
@@ -45,6 +46,11 @@ async function main() {
     loadingText.textContent = `${pct}%`;
   });
   loadingScreen.style.display = 'none';
+
+  const goldIcon = document.getElementById('icon-gold') as HTMLImageElement | null;
+  const lumberIcon = document.getElementById('icon-lumber') as HTMLImageElement | null;
+  if (goldIcon) goldIcon.src = assetLoader.toDataUrl(UI_ASSETS.icon_gold, 14) ?? '';
+  if (lumberIcon) lumberIcon.src = assetLoader.toDataUrl(UI_ASSETS.icon_lumber, 14) ?? '';
 
   // Menu system
   const mainMenu = new MainMenu();
@@ -241,11 +247,11 @@ function startSinglePlayer(app: Application, container: HTMLElement, assetLoader
     }
 
     debugRenderer.update(alpha);
-    if (debugState.enabled) {
-      debugState.fps = Math.round(app.ticker.FPS);
-      debugState.entityCount = localGame.world.query('Position').length;
-      debugState.tick = localGame.world.tick;
+    debugState.fps = Math.round(app.ticker.FPS);
+    debugState.entityCount = localGame.world.query('Position').length;
+    debugState.tick = localGame.world.tick;
 
+    if (debugState.enabled) {
       const aiController = localGame.aiSystem.getController(2);
       if (aiController) {
         Object.assign(debugState.aiDebug, aiController.debug);
