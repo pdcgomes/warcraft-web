@@ -377,8 +377,21 @@
         <span style="font-size:18px; font-weight:bold;">Horde</span>
       </button>
     </div>
+    <div style="margin-top:28px; display:flex; align-items:center; gap:10px;">
+      <label for="map-size-select" style="font-size:14px; color:#a0a0c0;">Map Size:</label>
+      <select id="map-size-select" style="
+        padding:6px 12px; font-size:14px; cursor:pointer;
+        background:#2a2a4e; color:#e0d6a0; border:1px solid #c8a82e;
+        border-radius:4px; font-family:inherit; outline:none;">
+        <option value="small">Small</option>
+        <option value="medium" selected>Medium</option>
+        <option value="large">Large</option>
+        <option value="extra_large">Extra Large</option>
+        <option value="extra_extra_large">Extra Extra Large</option>
+      </select>
+    </div>
     <a id="btn-faction-back" href="#" style="
-      margin-top:28px; font-size:14px; color:#888; text-decoration:none;
+      margin-top:20px; font-size:14px; color:#888; text-decoration:none;
       transition:color 0.2s;"
       onmouseenter="this.style.color='#c8a82e'" onmouseleave="this.style.color='#888'">Back</a>
   </div>

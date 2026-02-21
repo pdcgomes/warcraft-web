@@ -1,6 +1,6 @@
 import { Application } from 'pixi.js';
 import { Movement, UnitType, UNIT_DATA, BUILDING_DATA } from '@warcraft-web/shared';
-import type { FactionId } from '@warcraft-web/shared';
+import type { FactionId, MapSize } from '@warcraft-web/shared';
 import { GameRenderer } from './renderer/GameRenderer.js';
 import { InputManager } from './input/InputManager.js';
 import { HUD } from './ui/HUD.js';
@@ -56,10 +56,11 @@ async function main() {
     factionSelect.show();
   };
 
-  factionSelect.onSelect = (faction) => {
+  factionSelect.onSelect = (faction, mapSize) => {
     factionSelect.hide();
     sessionStorage.setItem('faction', faction);
-    startSinglePlayer(app, container, assetLoader, faction);
+    sessionStorage.setItem('mapSize', mapSize);
+    startSinglePlayer(app, container, assetLoader, faction, mapSize);
   };
 
   factionSelect.onBack = () => {
@@ -75,8 +76,10 @@ async function main() {
 
   if (isRestart) {
     const savedFaction = (sessionStorage.getItem('faction') ?? 'humans') as FactionId;
+    const savedMapSize = (sessionStorage.getItem('mapSize') ?? 'medium') as MapSize;
     sessionStorage.removeItem('faction');
-    startSinglePlayer(app, container, assetLoader, savedFaction);
+    sessionStorage.removeItem('mapSize');
+    startSinglePlayer(app, container, assetLoader, savedFaction, savedMapSize);
   } else {
     mainMenu.show();
   }
@@ -92,9 +95,9 @@ async function main() {
   };
 }
 
-function startSinglePlayer(app: Application, container: HTMLElement, assetLoader: AssetLoader, faction: FactionId): void {
+function startSinglePlayer(app: Application, container: HTMLElement, assetLoader: AssetLoader, faction: FactionId, mapSize: MapSize = 'medium'): void {
   const localGame = new LocalGame();
-  localGame.init(faction);
+  localGame.init(faction, mapSize);
 
   const renderer = new GameRenderer(app, localGame, assetLoader);
   renderer.centerOn(localGame.spawnScreen);

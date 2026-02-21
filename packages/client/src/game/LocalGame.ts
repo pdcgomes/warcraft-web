@@ -10,7 +10,7 @@ import {
   AISystem, AI_PRESETS,
   LevelGenerator, createDefaultConfig,
 } from '@warcraft-web/shared';
-import type { EntityId, UnitKind, FactionId, BuildingKind, Point, AIGameInterface } from '@warcraft-web/shared';
+import type { EntityId, UnitKind, FactionId, BuildingKind, Point, AIGameInterface, MapSize } from '@warcraft-web/shared';
 import { EntityFactory } from './EntityFactory.js';
 
 const TICK_MS = 100;
@@ -57,12 +57,12 @@ export class LocalGame implements AIGameInterface {
   private repairSystem!: RepairSystem;
   private deathSystem!: DeathCleanupSystem;
 
-  init(faction: FactionId = 'humans'): void {
+  init(faction: FactionId = 'humans', mapSize: MapSize = 'medium'): void {
     this.localFaction = faction;
     const opponentFaction: FactionId = faction === 'humans' ? 'orcs' : 'humans';
 
     // --- Level generation ---
-    const levelConfig = createDefaultConfig(faction, opponentFaction);
+    const levelConfig = createDefaultConfig(faction, opponentFaction, { mapSize });
     const generator = new LevelGenerator();
     const level = generator.generate(levelConfig);
     console.log(`[Level] seed=${level.seed}, spawns=${level.playerSpawns.length}, resources=${level.resourceSpawns.length}, entities=${level.entitySpawns.length}`);
