@@ -1,6 +1,7 @@
 import type { Advisor, Proposal } from './Advisor.js';
 import type { AIWorldView } from '../AIWorldView.js';
 import type { AIPersonality } from '../AIPersonality.js';
+import type { AIRandom } from '../AIRandom.js';
 import type { BuildingKind } from '../../components/Building.js';
 import { DefendTask } from '../tasks/DefendTask.js';
 import { BuildTask } from '../tasks/BuildTask.js';
@@ -9,7 +10,7 @@ import { BUILDING_DATA } from '../../data/BuildingData.js';
 export class DefenseAdvisor implements Advisor {
   readonly domain = 'defense';
 
-  evaluate(view: AIWorldView, personality: AIPersonality): Proposal[] {
+  evaluate(view: AIWorldView, personality: AIPersonality, _rng: AIRandom): Proposal[] {
     const proposals: Proposal[] = [];
 
     this.proposeBaseDefense(view, proposals);

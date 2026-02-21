@@ -1,21 +1,21 @@
 import type { Advisor, Proposal } from './Advisor.js';
 import type { AIWorldView } from '../AIWorldView.js';
 import type { AIPersonality } from '../AIPersonality.js';
+import type { AIRandom } from '../AIRandom.js';
 import type { UnitKind } from '../../components/UnitType.js';
-import type { EntityId } from '../../ecs/Entity.js';
 import { TrainTask } from '../tasks/TrainTask.js';
 import { AttackTask } from '../tasks/AttackTask.js';
+import { computeAttackReadiness } from '../AttackReadiness.js';
 import { UNIT_DATA, meetsPrerequisites } from '../../data/UnitData.js';
-import { Production } from '../../components/Production.js';
 
 export class MilitaryAdvisor implements Advisor {
   readonly domain = 'military';
 
-  evaluate(view: AIWorldView, personality: AIPersonality): Proposal[] {
+  evaluate(view: AIWorldView, personality: AIPersonality, rng: AIRandom): Proposal[] {
     const proposals: Proposal[] = [];
 
     this.proposeTraining(view, personality, proposals);
-    this.proposeAttack(view, personality, proposals);
+    this.proposeAttack(view, personality, rng, proposals);
 
     return proposals;
   }
@@ -44,25 +44,20 @@ export class MilitaryAdvisor implements Advisor {
     });
   }
 
-  private proposeAttack(view: AIWorldView, personality: AIPersonality, proposals: Proposal[]): void {
+  private proposeAttack(view: AIWorldView, personality: AIPersonality, rng: AIRandom, proposals: Proposal[]): void {
     if (view.tick < personality.firstAttackTick) return;
     if (view.knownEnemyBuildings.length === 0 && view.knownEnemyUnits.length === 0) return;
+    if (view.idleMilitary.length < 2) return;
 
-    const strengthRatio = view.estimatedEnemyStrength > 0
-      ? view.ownMilitaryStrength / view.estimatedEnemyStrength
-      : (view.ownMilitaryStrength > 0 ? 10 : 0);
+    const { score, ready } = computeAttackReadiness(view, personality, rng);
+    if (!ready) return;
 
-    const requiredRatio = 1 + (1 - personality.riskTolerance);
-    if (strengthRatio < requiredRatio) return;
-
-    const idleMilitary = view.idleMilitary;
-    if (idleMilitary.length < 2) return;
-
-    const targetEntity = view.knownEnemyBuildings[0] ?? view.knownEnemyUnits[0];
+    const allTargets = [...view.knownEnemyBuildings, ...view.knownEnemyUnits];
+    const targetEntity = rng.pick(allTargets) ?? allTargets[0];
     const targetPos = { x: 0, y: 0 };
 
-    const utility = 0.3 + personality.aggressiveness * 0.5;
-    const units = [...idleMilitary];
+    const utility = 0.3 + score * 0.5;
+    const units = [...view.idleMilitary];
     const te = targetEntity;
 
     proposals.push({

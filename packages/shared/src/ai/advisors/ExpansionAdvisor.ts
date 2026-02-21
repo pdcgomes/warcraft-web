@@ -1,6 +1,7 @@
 import type { Advisor, Proposal } from './Advisor.js';
 import type { AIWorldView } from '../AIWorldView.js';
 import type { AIPersonality } from '../AIPersonality.js';
+import type { AIRandom } from '../AIRandom.js';
 import type { BuildingKind } from '../../components/Building.js';
 import type { Point } from '../../math/Point.js';
 import { BuildTask } from '../tasks/BuildTask.js';
@@ -10,20 +11,20 @@ import { meetsPrerequisites } from '../../data/UnitData.js';
 export class ExpansionAdvisor implements Advisor {
   readonly domain = 'expansion';
 
-  evaluate(view: AIWorldView, personality: AIPersonality): Proposal[] {
+  evaluate(view: AIWorldView, personality: AIPersonality, rng: AIRandom): Proposal[] {
     const proposals: Proposal[] = [];
 
-    this.proposeBarracks(view, proposals);
-    this.proposeSupply(view, proposals);
-    this.proposeTechBuildings(view, personality, proposals);
+    this.proposeBarracks(view, rng, proposals);
+    this.proposeSupply(view, rng, proposals);
+    this.proposeTechBuildings(view, personality, rng, proposals);
 
     return proposals;
   }
 
-  private proposeBarracks(view: AIWorldView, proposals: Proposal[]): void {
+  private proposeBarracks(view: AIWorldView, rng: AIRandom, proposals: Proposal[]): void {
     if (view.ownBuildingKinds.has('barracks')) return;
 
-    const location = this.findBuildSite(view, 3, 3);
+    const location = this.findBuildSite(view, 3, 3, rng);
     if (!location) return;
 
     const workers = this.getAvailableWorkers(view);
@@ -37,12 +38,12 @@ export class ExpansionAdvisor implements Advisor {
     });
   }
 
-  private proposeSupply(view: AIWorldView, proposals: Proposal[]): void {
+  private proposeSupply(view: AIWorldView, rng: AIRandom, proposals: Proposal[]): void {
     if (view.supplyUsed < view.supplyCap - 2) return;
 
     const farmKind: BuildingKind = view.faction === 'humans' ? 'farm' : 'pig_farm';
     const data = BUILDING_DATA[farmKind];
-    const location = this.findBuildSite(view, data.tileWidth, data.tileHeight);
+    const location = this.findBuildSite(view, data.tileWidth, data.tileHeight, rng);
     if (!location) return;
 
     const workers = this.getAvailableWorkers(view);
@@ -56,7 +57,7 @@ export class ExpansionAdvisor implements Advisor {
     });
   }
 
-  private proposeTechBuildings(view: AIWorldView, personality: AIPersonality, proposals: Proposal[]): void {
+  private proposeTechBuildings(view: AIWorldView, personality: AIPersonality, rng: AIRandom, proposals: Proposal[]): void {
     if (personality.techPreference < 0.3) return;
 
     const candidates = this.getTechBuildingOrder(view);
@@ -68,7 +69,7 @@ export class ExpansionAdvisor implements Advisor {
       if (data.faction !== 'any' && data.faction !== view.faction) continue;
       if (!meetsPrerequisites(data.requires, view.ownBuildingKinds)) continue;
 
-      const location = this.findBuildSite(view, data.tileWidth, data.tileHeight);
+      const location = this.findBuildSite(view, data.tileWidth, data.tileHeight, rng);
       if (!location) continue;
 
       const workers = this.getAvailableWorkers(view);
@@ -94,19 +95,23 @@ export class ExpansionAdvisor implements Advisor {
     return ['war_mill', 'blacksmith', 'beastiary', 'guard_tower'];
   }
 
-  private findBuildSite(view: AIWorldView, width: number, height: number): Point | null {
+  private findBuildSite(view: AIWorldView, width: number, height: number, rng: AIRandom): Point | null {
     const cx = Math.round(view.baseCenter.x / 1000);
     const cy = Math.round(view.baseCenter.y / 1000);
 
     for (let ring = 4; ring <= 12; ring++) {
+      const candidates: Point[] = [];
       for (let dy = -ring; dy <= ring; dy++) {
         for (let dx = -ring; dx <= ring; dx++) {
           if (Math.abs(dx) !== ring && Math.abs(dy) !== ring) continue;
           const x = cx + dx;
           const y = cy + dy;
           if (x < 0 || y < 0) continue;
-          return { x, y };
+          candidates.push({ x, y });
         }
+      }
+      if (candidates.length > 0) {
+        return rng.pick(candidates)!;
       }
     }
     return null;

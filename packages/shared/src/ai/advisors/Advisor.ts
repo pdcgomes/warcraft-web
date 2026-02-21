@@ -1,5 +1,6 @@
 import type { AIWorldView } from '../AIWorldView.js';
 import type { AIPersonality } from '../AIPersonality.js';
+import type { AIRandom } from '../AIRandom.js';
 import type { Task } from '../tasks/Task.js';
 
 export interface Proposal {
@@ -11,5 +12,5 @@ export interface Proposal {
 
 export interface Advisor {
   readonly domain: string;
-  evaluate(view: AIWorldView, personality: AIPersonality): Proposal[];
+  evaluate(view: AIWorldView, personality: AIPersonality, rng: AIRandom): Proposal[];
 }

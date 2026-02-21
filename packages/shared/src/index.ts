@@ -65,6 +65,7 @@ export { DeathCleanupSystem } from './systems/DeathCleanupSystem.js';
 // AI
 export { AISystem } from './ai/AISystem.js';
 export { AIController } from './ai/AIController.js';
+export { AIRandom } from './ai/AIRandom.js';
 export { CommandDispatcher } from './ai/CommandDispatcher.js';
 export { buildWorldView } from './ai/AIWorldView.js';
 export type { AIWorldView, Threat } from './ai/AIWorldView.js';
