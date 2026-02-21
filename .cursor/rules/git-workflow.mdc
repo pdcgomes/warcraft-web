@@ -1,0 +1,11 @@
+---
+description: Git commit and push workflow convention
+alwaysApply: true
+---
+
+# Git Workflow
+
+After completing a task or set of changes, ask the user if they would like to commit and push.
+
+- Never commit or push automatically — always wait for explicit user confirmation
+- When the user confirms, follow the standard flow: stage relevant files, commit with a descriptive message, and push

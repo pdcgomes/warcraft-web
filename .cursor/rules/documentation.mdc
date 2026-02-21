@@ -1,0 +1,19 @@
+---
+description: Convention for where design documents and plans are stored
+alwaysApply: true
+---
+
+# Documentation Convention
+
+The `docs/` directory is the canonical location for all durable design documents, feature specs, and plans.
+
+- When designing a new feature or system, write the design doc to `docs/<name>.md`
+- When implementation changes make an existing design doc outdated, update it to reflect the current state
+- Use Cursor's CreatePlan tool only for ephemeral in-session task tracking, not for persistent documentation
+
+## Existing docs
+
+- `docs/game-design.md` — Full architecture and system design
+- `docs/ai-system-design.md` — AI opponent architecture
+- `docs/visual-effects-design.md` — Particle and effects system
+- `docs/implementation-plan.md` — Gameplay spec and evolution roadmap
