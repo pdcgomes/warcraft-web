@@ -9,6 +9,10 @@ import { EffectsManager } from '../effects/EffectsManager.js';
 import type { LocalGame } from '../game/LocalGame.js';
 import type { AssetLoader } from '../assets/AssetLoader.js';
 
+export interface ViewportBounds {
+  minX: number; minY: number; maxX: number; maxY: number;
+}
+
 /**
  * Manages the PixiJS stage, camera/viewport (pan, zoom).
  * Coordinates terrain, entity, and minimap rendering.
@@ -47,7 +51,7 @@ export class GameRenderer {
     this.worldContainer = new Container();
     app.stage.addChild(this.worldContainer);
 
-    this.terrainRenderer = new TerrainRenderer(this.worldContainer, game, assetLoader);
+    this.terrainRenderer = new TerrainRenderer(this.worldContainer, game, assetLoader, app.renderer);
     this.entityRenderer = new EntityRenderer(this.worldContainer, game, assetLoader);
 
     this.effectsManager = new EffectsManager(this.worldContainer, game, app.renderer);
@@ -107,6 +111,20 @@ export class GameRenderer {
     return this.app.screen.height - 160;
   }
 
+  /** Compute the world-pixel AABB of the currently visible area. */
+  getViewportWorldBounds(): ViewportBounds {
+    const screenW = this.app.screen.width;
+    const screenH = this.gameAreaHeight;
+    const tl = this.screenToWorld({ x: 0, y: 0 });
+    const br = this.screenToWorld({ x: screenW, y: screenH });
+    return {
+      minX: Math.min(tl.x, br.x),
+      minY: Math.min(tl.y, br.y),
+      maxX: Math.max(tl.x, br.x),
+      maxY: Math.max(tl.y, br.y),
+    };
+  }
+
   render(alpha: number): void {
     this.clampCamera();
 
@@ -114,8 +132,11 @@ export class GameRenderer {
     this.worldContainer.y = this.cameraY;
     this.worldContainer.scale.set(this.zoom);
 
+    const vp = this.getViewportWorldBounds();
+    this.terrainRenderer.cullChunks(vp);
+
     const dt = this.app.ticker.deltaMS / 1000;
-    this.entityRenderer.update(alpha);
+    this.entityRenderer.update(alpha, vp);
     this.effectsManager.update(dt);
     this.fogRenderer.update(dt);
     this.minimapRenderer.render();

@@ -9,6 +9,7 @@ import type { LocalGame } from '../game/LocalGame.js';
 import type { AssetLoader } from '../assets/AssetLoader.js';
 import { debugState } from '../debug/DebugState.js';
 import { UNIT_ASSETS, BUILDING_ASSETS, RESOURCE_ASSETS } from '../assets/AssetManifest.js';
+import type { ViewportBounds } from './GameRenderer.js';
 
 /** Color palette for players. */
 const PLAYER_COLORS: Record<number, number> = {
@@ -88,9 +89,10 @@ export class EntityRenderer {
     }
   }
 
-  update(alpha: number): void {
+  update(alpha: number, vp?: ViewportBounds): void {
     const world = this.game.world;
     const currentEntities = new Set<EntityId>();
+    const VP_PADDING = 120;
 
     const entities = world.query(Position.type);
 
@@ -113,6 +115,16 @@ export class EntityRenderer {
       }
 
       const screen = tileToScreen({ x: renderTileX, y: renderTileY });
+
+      // Viewport culling: skip all heavy work for off-screen entities
+      if (vp && (
+        screen.x < vp.minX - VP_PADDING || screen.x > vp.maxX + VP_PADDING ||
+        screen.y < vp.minY - VP_PADDING || screen.y > vp.maxY + VP_PADDING
+      )) {
+        const existing = this.sprites.get(entityId);
+        if (existing) existing.container.visible = false;
+        continue;
+      }
 
       let sprite = this.sprites.get(entityId);
       if (!sprite) {
