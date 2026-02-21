@@ -725,12 +725,6 @@ export class InputManager {
         if (debugState.showPaths) {
           debugState.activePaths.push({ entityId, path: [...path] });
         }
-      } else {
-        const fallback = [{ x: unitGoalX * 1000, y: unitGoalY * 1000 }];
-        mov.setPath(fallback, delay);
-        if (debugState.showPaths) {
-          debugState.activePaths.push({ entityId, path: [...fallback] });
-        }
       }
     }
 
@@ -751,9 +745,8 @@ export class InputManager {
       const combat = world.getComponent(entityId, Combat);
       if (combat) combat.targetEntity = targetEntity;
 
-      const mov = world.getComponent(entityId, Movement);
-      if (mov && targetPos) {
-        mov.setPath([targetPos.toPoint()]);
+      if (targetPos) {
+        this.pathEntityTo(entityId, targetPos.toPoint());
       }
     }
 
@@ -766,8 +759,7 @@ export class InputManager {
 
     for (const entityId of entities) {
       const pos = world.getComponent(entityId, Position);
-      const mov = world.getComponent(entityId, Movement);
-      if (!pos || !mov) continue;
+      if (!pos) continue;
 
       this.clearAllStates(entityId);
 
@@ -779,7 +771,7 @@ export class InputManager {
         behavior.patrolForward = true;
       }
 
-      mov.setPath([target]);
+      this.pathEntityTo(entityId, target);
     }
 
     this.emitOrderConfirmed('Patrol', entities);
@@ -803,12 +795,12 @@ export class InputManager {
 
         carrier.gatherTarget = targetEntity;
         carrier.state = 'moving_to_resource';
-        mov.setPath([targetPos.toPoint()]);
+        this.pathEntityTo(entityId, targetPos.toPoint());
       } else if (mov) {
         this.clearAllStates(entityId);
         const behavior = world.getComponent(entityId, UnitBehavior);
         if (behavior) behavior.state = 'moving';
-        mov.setPath([targetPos.toPoint()]);
+        this.pathEntityTo(entityId, targetPos.toPoint());
       }
     }
 
@@ -846,14 +838,26 @@ export class InputManager {
         behavior.repairTarget = targetEntity;
       }
 
-      const mov = world.getComponent(entityId, Movement);
-      if (mov) {
-        mov.setPath([targetPos.toPoint()]);
-      }
+      this.pathEntityTo(entityId, targetPos.toPoint());
     }
 
     this.emitOrderConfirmed('Repair', entities);
     this.orderMarkerAtEntity(targetEntity, 'move');
+  }
+
+  /** Compute an A* path from an entity's current position to a fixed-point target. */
+  private pathEntityTo(entityId: EntityId, target: Point): void {
+    const world = this.game.world;
+    const pos = world.getComponent(entityId, Position);
+    const mov = world.getComponent(entityId, Movement);
+    if (!pos || !mov) return;
+
+    const startTile = { x: Math.round(pos.x / 1000), y: Math.round(pos.y / 1000) };
+    const goalTile = { x: Math.round(target.x / 1000), y: Math.round(target.y / 1000) };
+    const path = findPath(this.game.gameMap, startTile, goalTile);
+    if (path.length > 0) {
+      mov.setPath(path);
+    }
   }
 
   // ---- Formation ----

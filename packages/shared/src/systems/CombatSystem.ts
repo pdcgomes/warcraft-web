@@ -9,6 +9,8 @@ import { UnitBehavior } from '../components/UnitBehavior.js';
 import { UnitType } from '../components/UnitType.js';
 import { Building } from '../components/Building.js';
 import { fpDistance } from '../math/FixedPoint.js';
+import type { GameMap } from '../map/GameMap.js';
+import { findPath } from '../map/Pathfinding.js';
 import type { GameEventLog } from '../game/GameEventLog.js';
 import { factionSender } from '../game/GameEventLog.js';
 
@@ -45,9 +47,19 @@ export class CombatSystem extends System {
   readonly priority = 20;
 
   private eventLog: GameEventLog | null = null;
+  private gameMap: GameMap | null = null;
+
+  constructor(gameMap?: GameMap) {
+    super();
+    if (gameMap) this.gameMap = gameMap;
+  }
 
   setEventLog(log: GameEventLog): void {
     this.eventLog = log;
+  }
+
+  setGameMap(map: GameMap): void {
+    this.gameMap = map;
   }
 
   update(world: World, _deltaMs: number): void {
@@ -102,18 +114,23 @@ export class CombatSystem extends System {
         }
       } else if (state === 'holding') {
         combat.targetEntity = null;
-      } else if (state === 'attacking') {
+      } else if (state === 'attacking' || state === 'patrolling') {
         const mov = world.getComponent(entityId, Movement);
         if (mov && !mov.isMoving) {
-          mov.setPath([{ x: targetPos.x, y: targetPos.y }]);
+          this.pathTo(pos, mov, { x: targetPos.x, y: targetPos.y });
         }
       }
-      else if (state === 'patrolling') {
-        const mov = world.getComponent(entityId, Movement);
-        if (mov && !mov.isMoving) {
-          mov.setPath([{ x: targetPos.x, y: targetPos.y }]);
-        }
-      }
+    }
+  }
+
+  private pathTo(pos: Position, mov: Movement, target: { x: number; y: number }): void {
+    if (this.gameMap) {
+      const startTile = { x: Math.round(pos.x / 1000), y: Math.round(pos.y / 1000) };
+      const goalTile = { x: Math.round(target.x / 1000), y: Math.round(target.y / 1000) };
+      const path = findPath(this.gameMap, startTile, goalTile);
+      if (path.length > 0) mov.setPath(path);
+    } else {
+      mov.setPath([target]);
     }
   }
 

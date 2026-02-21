@@ -82,10 +82,10 @@ export class NetworkGame {
     this.gameMap = level.map;
 
     this.movementSystem = new MovementSystem();
-    this.patrolSystem = new PatrolSystem();
+    this.patrolSystem = new PatrolSystem(this.gameMap);
     this.collisionSystem = new CollisionSystem();
-    this.combatSystem = new CombatSystem();
-    this.resourceSystem = new ResourceGatheringSystem(this.playerResources);
+    this.combatSystem = new CombatSystem(this.gameMap);
+    this.resourceSystem = new ResourceGatheringSystem(this.playerResources, this.gameMap);
     this.productionSystem = new ProductionSystem();
     this.buildingSystem = new BuildingConstructionSystem();
     this.repairSystem = new RepairSystem(this.playerResources);

@@ -6,6 +6,8 @@ import { Combat } from '../components/Combat.js';
 import { UnitBehavior } from '../components/UnitBehavior.js';
 import { fpDistance } from '../math/FixedPoint.js';
 import type { Point } from '../math/Point.js';
+import type { GameMap } from '../map/GameMap.js';
+import { findPath } from '../map/Pathfinding.js';
 
 /** Distance at which a patrol waypoint is considered reached. */
 const PATROL_ARRIVE_DIST = 300;
@@ -24,6 +26,17 @@ const PATROL_ARRIVE_DIST = 300;
 export class PatrolSystem extends System {
   readonly name = 'PatrolSystem';
   readonly priority = 12;
+
+  private gameMap: GameMap | null = null;
+
+  constructor(gameMap?: GameMap) {
+    super();
+    if (gameMap) this.gameMap = gameMap;
+  }
+
+  setGameMap(map: GameMap): void {
+    this.gameMap = map;
+  }
 
   update(world: World, _deltaMs: number): void {
     const entities = world.query(
@@ -57,7 +70,14 @@ export class PatrolSystem extends System {
           : behavior.patrolOrigin;
       }
 
-      mov.setPath([waypoint]);
+      if (this.gameMap) {
+        const startTile = { x: Math.round(pos.x / 1000), y: Math.round(pos.y / 1000) };
+        const goalTile = { x: Math.round(waypoint.x / 1000), y: Math.round(waypoint.y / 1000) };
+        const path = findPath(this.gameMap, startTile, goalTile);
+        if (path.length > 0) mov.setPath(path);
+      } else {
+        mov.setPath([waypoint]);
+      }
     }
   }
 }

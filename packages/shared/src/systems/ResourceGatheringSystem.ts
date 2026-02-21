@@ -10,6 +10,8 @@ import { UnitBehavior } from '../components/UnitBehavior.js';
 import { fpDistance } from '../math/FixedPoint.js';
 import type { Point } from '../math/Point.js';
 import type { PlayerResources } from '../game/PlayerResources.js';
+import type { GameMap } from '../map/GameMap.js';
+import { findPath } from '../map/Pathfinding.js';
 
 /** Distance threshold to consider a worker "at" a target (fixed-point). */
 const ARRIVE_DISTANCE = 1500; // 1.5 tiles
@@ -28,12 +30,18 @@ export class ResourceGatheringSystem extends System {
 
   /** Shared player resources (injected from outside). */
   playerResources!: PlayerResources;
+  private gameMap: GameMap | null = null;
 
-  constructor(playerResources?: PlayerResources) {
+  constructor(playerResources?: PlayerResources, gameMap?: GameMap) {
     super();
     if (playerResources) {
       this.playerResources = playerResources;
     }
+    if (gameMap) this.gameMap = gameMap;
+  }
+
+  setGameMap(map: GameMap): void {
+    this.gameMap = map;
   }
 
   update(world: World, _deltaMs: number): void {
@@ -121,7 +129,7 @@ export class ResourceGatheringSystem extends System {
               carrier.returnTarget = returnTarget;
               const returnPos = world.getComponent(returnTarget, Position);
               if (returnPos) {
-                mov.setPath([returnPos.toPoint()]);
+                this.pathTo(pos, mov, returnPos.toPoint());
               }
             } else {
               this.goIdle(carrier, behavior);
@@ -159,7 +167,7 @@ export class ResourceGatheringSystem extends System {
               carrier.state = 'moving_to_resource';
               const sourcePos = world.getComponent(carrier.gatherTarget, Position);
               if (sourcePos) {
-                mov.setPath([sourcePos.toPoint()]);
+                this.pathTo(pos, mov, sourcePos.toPoint());
               }
             } else {
               this.goIdle(carrier, behavior);
@@ -169,6 +177,17 @@ export class ResourceGatheringSystem extends System {
           break;
         }
       }
+    }
+  }
+
+  private pathTo(pos: Position, mov: Movement, target: Point): void {
+    if (this.gameMap) {
+      const startTile = { x: Math.round(pos.x / 1000), y: Math.round(pos.y / 1000) };
+      const goalTile = { x: Math.round(target.x / 1000), y: Math.round(target.y / 1000) };
+      const path = findPath(this.gameMap, startTile, goalTile);
+      if (path.length > 0) mov.setPath(path);
+    } else {
+      mov.setPath([target]);
     }
   }
 

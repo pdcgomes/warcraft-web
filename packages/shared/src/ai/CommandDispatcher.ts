@@ -59,8 +59,6 @@ export class CommandDispatcher {
 
     if (path.length > 0) {
       mov.setPath(path);
-    } else {
-      mov.setPath([{ x: goalTile.x * 1000, y: goalTile.y * 1000 }]);
     }
   }
 
@@ -75,9 +73,8 @@ export class CommandDispatcher {
     const combat = this.world.getComponent(entityId, Combat);
     if (combat) combat.targetEntity = targetEntity;
 
-    const mov = this.world.getComponent(entityId, Movement);
-    if (mov && targetPos) {
-      mov.setPath([targetPos.toPoint()]);
+    if (targetPos) {
+      this.pathEntityTo(entityId, targetPos.toPoint());
     }
   }
 
@@ -96,7 +93,7 @@ export class CommandDispatcher {
 
     carrier.gatherTarget = resourceEntity;
     carrier.state = 'moving_to_resource';
-    mov.setPath([targetPos.toPoint()]);
+    this.pathEntityTo(entityId, targetPos.toPoint());
   }
 
   commandConstruct(entityId: EntityId, buildingEntity: EntityId): void {
@@ -111,10 +108,7 @@ export class CommandDispatcher {
       behavior.constructingTarget = buildingEntity;
     }
 
-    const mov = this.world.getComponent(entityId, Movement);
-    if (mov) {
-      mov.setPath([targetPos.toPoint()]);
-    }
+    this.pathEntityTo(entityId, targetPos.toPoint());
   }
 
   commandRepair(entityId: EntityId, buildingEntity: EntityId): void {
@@ -129,10 +123,7 @@ export class CommandDispatcher {
       behavior.repairTarget = buildingEntity;
     }
 
-    const mov = this.world.getComponent(entityId, Movement);
-    if (mov) {
-      mov.setPath([targetPos.toPoint()]);
-    }
+    this.pathEntityTo(entityId, targetPos.toPoint());
   }
 
   commandPatrol(entityId: EntityId, origin: Point, target: Point): void {
@@ -149,7 +140,21 @@ export class CommandDispatcher {
       behavior.patrolForward = true;
     }
 
-    mov.setPath([target]);
+    this.pathEntityTo(entityId, target);
+  }
+
+  /** Compute an A* path from an entity's current position to a fixed-point target. */
+  pathEntityTo(entityId: EntityId, target: Point): void {
+    const pos = this.world.getComponent(entityId, Position);
+    const mov = this.world.getComponent(entityId, Movement);
+    if (!pos || !mov) return;
+
+    const startTile = { x: Math.round(pos.x / 1000), y: Math.round(pos.y / 1000) };
+    const goalTile = { x: Math.round(target.x / 1000), y: Math.round(target.y / 1000) };
+    const path = findPath(this.gameMap, startTile, goalTile);
+    if (path.length > 0) {
+      mov.setPath(path);
+    }
   }
 
   commandStop(entityId: EntityId): void {

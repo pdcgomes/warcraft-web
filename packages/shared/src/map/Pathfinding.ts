@@ -66,7 +66,11 @@ export function findPath(map: GameMap, start: Point, goal: Point): Point[] {
 
   const startP = { x: sx, y: sy };
   if (!map.isWalkable(startP)) {
-    return [{ x: gx * FP_SCALE, y: gy * FP_SCALE }];
+    const nearStart = findNearestWalkable(map, startP);
+    if (!nearStart) return [];
+    sx = nearStart.x;
+    sy = nearStart.y;
+    if (sx === gx && sy === gy) return [];
   }
 
   const openSet: AStarNode[] = [];
@@ -151,7 +155,7 @@ export function findPath(map: GameMap, start: Point, goal: Point): Point[] {
     }
   }
 
-  return [{ x: gx * FP_SCALE, y: gy * FP_SCALE }];
+  return [];
 }
 
 /** Reconstruct path from goal node back to start, convert to fixed-point. */
