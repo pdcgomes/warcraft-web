@@ -78,6 +78,7 @@ export class TerrainRenderer {
     const endTileX = Math.min(startTileX + CHUNK_SIZE, map.width);
     const endTileY = Math.min(startTileY + CHUNK_SIZE, map.height);
 
+    // Compute the world-pixel bounding box for this chunk
     let worldMinX = Infinity, worldMinY = Infinity;
     let worldMaxX = -Infinity, worldMaxY = -Infinity;
 
@@ -91,14 +92,15 @@ export class TerrainRenderer {
       }
     }
 
+    // Position tiles in chunk-local coords (origin at 0,0)
     const tempContainer = new Container();
-    tempContainer.x = -worldMinX;
-    tempContainer.y = -worldMinY;
 
     for (let y = startTileY; y < endTileY; y++) {
       for (let x = startTileX; x < endTileX; x++) {
         const terrain = map.getTerrain({ x, y });
         const screen = tileToScreen({ x, y });
+        const localX = screen.x - worldMinX;
+        const localY = screen.y - worldMinY;
 
         let placed = false;
         if (useSprites) {
@@ -108,8 +110,8 @@ export class TerrainRenderer {
             const texture = this.assetLoader.getTexture(variations[variationIndex]);
             if (texture) {
               const tileC = new Container();
-              tileC.x = screen.x;
-              tileC.y = screen.y;
+              tileC.x = localX;
+              tileC.y = localY;
 
               const spr = new Sprite(texture);
               spr.anchor.set(0.5, 0.5);
@@ -135,7 +137,7 @@ export class TerrainRenderer {
         }
 
         if (!placed) {
-          this.addFallbackTile(tempContainer, screen, terrain);
+          this.addFallbackTile(tempContainer, localX, localY, terrain);
         }
       }
     }
@@ -143,16 +145,11 @@ export class TerrainRenderer {
     const texWidth = Math.ceil(worldMaxX - worldMinX);
     const texHeight = Math.ceil(worldMaxY - worldMinY);
 
-    let chunkTexture: Texture;
-    try {
-      chunkTexture = this.renderer.generateTexture({
-        target: tempContainer,
-        resolution: 1,
-        frame: new Rectangle(0, 0, texWidth, texHeight),
-      });
-    } catch {
-      chunkTexture = this.renderer.generateTexture(tempContainer);
-    }
+    const chunkTexture = this.renderer.generateTexture({
+      target: tempContainer,
+      resolution: this.renderer.resolution,
+      frame: new Rectangle(0, 0, texWidth, texHeight),
+    });
 
     tempContainer.destroy({ children: true });
 
@@ -163,30 +160,29 @@ export class TerrainRenderer {
     return { sprite: chunkSprite, worldMinX, worldMinY, worldMaxX, worldMaxY };
   }
 
-  private addFallbackTile(parent: Container, screen: { x: number; y: number }, terrain: TerrainType): void {
+  private addFallbackTile(parent: Container, cx: number, cy: number, terrain: TerrainType): void {
     const info = TERRAIN_DATA[terrain];
     const g = new Graphics();
 
     g.poly([
-      screen.x, screen.y - TILE_HEIGHT_HALF,
-      screen.x + TILE_WIDTH_HALF, screen.y,
-      screen.x, screen.y + TILE_HEIGHT_HALF,
-      screen.x - TILE_WIDTH_HALF, screen.y,
+      cx, cy - TILE_HEIGHT_HALF,
+      cx + TILE_WIDTH_HALF, cy,
+      cx, cy + TILE_HEIGHT_HALF,
+      cx - TILE_WIDTH_HALF, cy,
     ]);
     g.fill(info.color);
     g.poly([
-      screen.x, screen.y - TILE_HEIGHT_HALF,
-      screen.x + TILE_WIDTH_HALF, screen.y,
-      screen.x, screen.y + TILE_HEIGHT_HALF,
-      screen.x - TILE_WIDTH_HALF, screen.y,
+      cx, cy - TILE_HEIGHT_HALF,
+      cx + TILE_WIDTH_HALF, cy,
+      cx, cy + TILE_HEIGHT_HALF,
+      cx - TILE_WIDTH_HALF, cy,
     ]);
     g.stroke({ width: 0.5, color: 0x000000, alpha: 0.15 });
 
     if (terrain === TerrainType.Forest) {
-      const cx = screen.x, cy = screen.y - 4;
-      g.poly([cx, cy - 8, cx - 4, cy + 2, cx + 4, cy + 2]);
+      g.poly([cx, cy - 12, cx - 4, cy - 2, cx + 4, cy - 2]);
       g.fill(0x1a4010);
-      g.rect(cx - 1, cy + 2, 2, 3);
+      g.rect(cx - 1, cy - 2, 2, 3);
       g.fill(0x5c3a1e);
     }
 
