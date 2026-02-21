@@ -100,7 +100,7 @@ function startSinglePlayer(app: Application, container: HTMLElement, assetLoader
   localGame.init(faction, mapSize);
 
   const renderer = new GameRenderer(app, localGame, assetLoader);
-  renderer.centerOn(localGame.spawnScreen);
+  renderer.centerOn(localGame.spawnScreen, { animate: false });
 
   const inputManager = new InputManager(app, renderer, localGame);
   const hud = new HUD(localGame, renderer, inputManager);
@@ -273,7 +273,7 @@ function startMultiplayer(
   netGame.init();
 
   const renderer = new GameRenderer(app, netGame as any, assetLoader);
-  renderer.centerOn(netGame.spawnScreen);
+  renderer.centerOn(netGame.spawnScreen, { animate: false });
 
   const inputManager = new InputManager(app, renderer, netGame as any);
   const hud = new HUD(netGame as any, renderer, inputManager);

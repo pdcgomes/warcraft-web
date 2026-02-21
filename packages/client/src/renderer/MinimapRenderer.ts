@@ -206,14 +206,14 @@ export class MinimapRenderer {
       } else {
         this.dragOffsetX = 0;
         this.dragOffsetY = 0;
-        this.panToTile(clickTile.x, clickTile.y);
+        this.panToTile(clickTile.x, clickTile.y, { animate: true });
       }
     });
 
     window.addEventListener('mousemove', (e) => {
       if (!this.isDragging) return;
       const tile = this.mouseToTile(e);
-      this.panToTile(tile.x - this.dragOffsetX, tile.y - this.dragOffsetY);
+      this.panToTile(tile.x - this.dragOffsetX, tile.y - this.dragOffsetY, { animate: false });
     });
 
     window.addEventListener('mouseup', (e) => {
@@ -263,8 +263,8 @@ export class MinimapRenderer {
     return pt.x >= r.x && pt.x <= r.x + r.w && pt.y >= r.y && pt.y <= r.y + r.h;
   }
 
-  private panToTile(tileX: number, tileY: number): void {
+  private panToTile(tileX: number, tileY: number, opts?: { animate?: boolean }): void {
     const worldPos = tileToScreen({ x: tileX, y: tileY });
-    this.gameRenderer.centerOn(worldPos);
+    this.gameRenderer.centerOn(worldPos, opts);
   }
 }

@@ -41,6 +41,12 @@ export class GameRenderer {
   private readonly MIN_ZOOM = 0.5;
   private readonly MAX_ZOOM = 2;
 
+  private animTarget: { x: number; y: number } | null = null;
+  private animStartX = 0;
+  private animStartY = 0;
+  private animStartTime = 0;
+  private readonly ANIM_DURATION_MS = 280;
+
   /** World-pixel bounding box of the full tile map (computed once). */
   private mapBounds = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
 
@@ -68,16 +74,34 @@ export class GameRenderer {
     this.computeMapBounds();
   }
 
-  /** Move camera by delta pixels. */
+  /** Move camera by delta pixels. Cancels any active animation. */
   pan(dx: number, dy: number): void {
+    this.animTarget = null;
     this.cameraX += dx;
     this.cameraY += dy;
   }
 
-  /** Set camera to center on a world position (pixels). */
-  centerOn(world: Point): void {
-    this.cameraX = -world.x + this.app.screen.width / 2;
-    this.cameraY = -world.y + this.app.screen.height / 2;
+  /**
+   * Center camera on a world position.
+   * By default the camera glides to the target with a smooth
+   * ease-in-ease-out curve. Pass `{ animate: false }` for immediate
+   * jumps (initial placement, continuous minimap drag).
+   */
+  centerOn(world: Point, opts?: { animate?: boolean }): void {
+    const shouldAnimate = opts?.animate ?? true;
+    const targetX = -world.x * this.zoom + this.app.screen.width / 2;
+    const targetY = -world.y * this.zoom + this.app.screen.height / 2;
+
+    if (shouldAnimate) {
+      this.animStartX = this.cameraX;
+      this.animStartY = this.cameraY;
+      this.animTarget = { x: targetX, y: targetY };
+      this.animStartTime = performance.now();
+    } else {
+      this.animTarget = null;
+      this.cameraX = targetX;
+      this.cameraY = targetY;
+    }
   }
 
   /** Zoom in/out at a screen point. */
@@ -126,6 +150,7 @@ export class GameRenderer {
   }
 
   render(alpha: number): void {
+    this.stepCameraAnimation();
     this.clampCamera();
 
     this.worldContainer.x = this.cameraX;
@@ -200,6 +225,19 @@ export class GameRenderer {
     }
 
     this.mapBounds = { minX, minY, maxX, maxY };
+  }
+
+  private stepCameraAnimation(): void {
+    if (!this.animTarget) return;
+
+    const elapsed = performance.now() - this.animStartTime;
+    const t = Math.min(1, elapsed / this.ANIM_DURATION_MS);
+    const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    this.cameraX = this.animStartX + (this.animTarget.x - this.animStartX) * ease;
+    this.cameraY = this.animStartY + (this.animTarget.y - this.animStartY) * ease;
+
+    if (t >= 1) this.animTarget = null;
   }
 
   /**
