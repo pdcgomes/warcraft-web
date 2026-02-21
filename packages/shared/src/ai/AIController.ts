@@ -21,6 +21,8 @@ import { ExpansionAdvisor } from './advisors/ExpansionAdvisor.js';
 import { MilitaryAdvisor } from './advisors/MilitaryAdvisor.js';
 import { DefenseAdvisor } from './advisors/DefenseAdvisor.js';
 import { ScoutAdvisor } from './advisors/ScoutAdvisor.js';
+import { AIRandom } from './AIRandom.js';
+import { computeAttackReadiness } from './AttackReadiness.js';
 import { DefendTask } from './tasks/DefendTask.js';
 import { GatherTask } from './tasks/GatherTask.js';
 import { AttackTask } from './tasks/AttackTask.js';
@@ -43,19 +45,23 @@ export class AIController {
   readonly debug: AIDebugSnapshot;
 
   private readonly advisors: Advisor[];
+  readonly rng: AIRandom;
   private activeTasks: Task[] = [];
   private strategicCooldown: number;
+  private thinkInterval: number;
   private tacticalCooldown = 0;
   private prevHealth: Map<EntityId, number> = new Map();
   private lastView: AIWorldView | null = null;
 
-  constructor(playerId: number, faction: FactionId, personality: AIPersonality) {
+  constructor(playerId: number, faction: FactionId, personality: AIPersonality, seed?: number) {
     this.playerId = playerId;
     this.faction = faction;
     this.personality = personality;
+    this.rng = new AIRandom(seed ?? Date.now());
     this.debug = createDefaultAIDebugSnapshot();
     this.debug.activePersonality = personality.name;
-    this.strategicCooldown = Math.floor(personality.thinkInterval / 2);
+    this.thinkInterval = Math.round(personality.thinkInterval * (0.8 + this.rng.next() * 0.4));
+    this.strategicCooldown = Math.floor(this.thinkInterval / 2);
 
     this.advisors = [
       new EconomyAdvisor(),
@@ -84,7 +90,8 @@ export class AIController {
     this.strategicCooldown--;
     if (this.strategicCooldown <= 0) {
       this.think(ctx);
-      this.strategicCooldown = this.personality.thinkInterval;
+      const jitter = this.rng.int(-3, 3);
+      this.strategicCooldown = this.thinkInterval + jitter;
     }
 
     this.executeTasks(ctx);
@@ -101,12 +108,13 @@ export class AIController {
     const advisorOutputs: AdvisorDebugEntry[] = [];
 
     for (const advisor of this.advisors) {
-      const proposals = advisor.evaluate(view, this.personality);
+      const proposals = advisor.evaluate(view, this.personality, this.rng);
       const weight = domainWeight(this.personality, advisor.domain);
 
       const debugProposals: ProposalDebugEntry[] = [];
       for (const p of proposals) {
-        const score = p.utility * weight;
+        const noise = (this.rng.next() - 0.5) * 0.15;
+        const score = p.utility * weight + noise;
         allProposals.push({ proposal: p, weight, score });
         debugProposals.push({
           domain: p.domain,
@@ -227,22 +235,30 @@ export class AIController {
         t => t.domain === 'economy' && t.status === 'active',
       );
       if (!alreadyAssigned && view.knownResourceNodes.length > 0) {
-        const resourceId = view.knownResourceNodes[0];
+        const resourceId = this.rng.pick(view.knownResourceNodes)!;
         this.activeTasks.push(new GatherTask(workerId, resourceId));
         idleReassigned++;
       }
     }
 
-    if (view.idleMilitary.length >= 2 && (view.knownEnemyBuildings.length > 0 || view.knownEnemyUnits.length > 0)) {
-      const hasActiveAttack = this.activeTasks.some(
-        t => t.domain === 'military' && t instanceof AttackTask && t.status === 'active',
-      );
-      if (!hasActiveAttack) {
-        const targetEntity = view.knownEnemyBuildings[0] ?? view.knownEnemyUnits[0];
-        const targetPos = ctx.world.getComponent(targetEntity, Position);
-        const pos = targetPos ? targetPos.toPoint() : view.baseCenter;
-        this.activeTasks.push(new AttackTask([...view.idleMilitary], pos, targetEntity));
-        idleReassigned += view.idleMilitary.length;
+    if (
+      view.idleMilitary.length >= 2 &&
+      ctx.world.tick >= this.personality.firstAttackTick &&
+      (view.knownEnemyBuildings.length > 0 || view.knownEnemyUnits.length > 0)
+    ) {
+      const { ready } = computeAttackReadiness(view, this.personality, this.rng);
+      if (ready) {
+        const hasActiveAttack = this.activeTasks.some(
+          t => t.domain === 'military' && t instanceof AttackTask && t.status === 'active',
+        );
+        if (!hasActiveAttack) {
+          const allTargets = [...view.knownEnemyBuildings, ...view.knownEnemyUnits];
+          const targetEntity = this.rng.pick(allTargets) ?? allTargets[0];
+          const targetPos = ctx.world.getComponent(targetEntity, Position);
+          const pos = targetPos ? targetPos.toPoint() : view.baseCenter;
+          this.activeTasks.push(new AttackTask([...view.idleMilitary], pos, targetEntity));
+          idleReassigned += view.idleMilitary.length;
+        }
       }
     }
 

@@ -1,6 +1,7 @@
 import type { Advisor, Proposal } from './Advisor.js';
 import type { AIWorldView } from '../AIWorldView.js';
 import type { AIPersonality } from '../AIPersonality.js';
+import type { AIRandom } from '../AIRandom.js';
 import type { EntityId } from '../../ecs/Entity.js';
 import { GatherTask } from '../tasks/GatherTask.js';
 import { TrainTask } from '../tasks/TrainTask.js';
@@ -10,21 +11,21 @@ const TARGET_GOLD_LUMBER_RATIO = 2;
 export class EconomyAdvisor implements Advisor {
   readonly domain = 'economy';
 
-  evaluate(view: AIWorldView, personality: AIPersonality): Proposal[] {
+  evaluate(view: AIWorldView, personality: AIPersonality, rng: AIRandom): Proposal[] {
     const proposals: Proposal[] = [];
 
-    this.proposeWorkerAssignments(view, proposals);
+    this.proposeWorkerAssignments(view, rng, proposals);
     this.proposeWorkerTraining(view, personality, proposals);
 
     return proposals;
   }
 
-  private proposeWorkerAssignments(view: AIWorldView, proposals: Proposal[]): void {
+  private proposeWorkerAssignments(view: AIWorldView, rng: AIRandom, proposals: Proposal[]): void {
     if (view.idleWorkers.length === 0 || view.knownResourceNodes.length === 0) return;
 
     for (const workerId of view.idleWorkers) {
       const preferGold = this.shouldPreferGold(view);
-      const resourceId = this.findBestResource(view, preferGold);
+      const resourceId = this.findBestResource(view, preferGold, rng);
       if (resourceId === null) continue;
 
       const rid = resourceId;
@@ -67,15 +68,8 @@ export class EconomyAdvisor implements Advisor {
     return (gold / Math.max(1, lumber)) < TARGET_GOLD_LUMBER_RATIO;
   }
 
-  private findBestResource(view: AIWorldView, preferGold: boolean): EntityId | null {
+  private findBestResource(view: AIWorldView, _preferGold: boolean, rng: AIRandom): EntityId | null {
     if (view.knownResourceNodes.length === 0) return null;
-
-    // Prefer matching resource type; fall back to any
-    for (const rid of view.knownResourceNodes) {
-      // We can't access the World directly here, so we just return the first available node.
-      // The WorldView could be extended with richer resource info in the future.
-      return rid;
-    }
-    return null;
+    return rng.pick(view.knownResourceNodes) ?? null;
   }
 }
