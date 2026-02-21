@@ -2,6 +2,25 @@
 
 A Warcraft 2 inspired real-time strategy game built for the browser. Features isometric 2D graphics, two asymmetrically-named factions (Humans and Orcs), resource gathering, base building, unit production, combat, fog of war, and a CPU AI opponent — all running on a deterministic shared simulation powered by a custom Entity Component System.
 
+## Disclaimer
+
+Before you proceed and ask yourself - "Is this...?"
+
+Yes — this project is largely LLM-generated.
+
+I’ve been a professional software engineer for over 20 years, and building systems has always been my real passion. Clean code matters, but mostly as a byproduct of good design.
+
+Like many engineers, I’ve accumulated a long list of unfinished side projects. Not because the ideas weren’t compelling, but because time and energy are finite. After a full day of intense work, sitting down to write more code — even for something fun — is harder than it sounds. LLMs have fundamentally changed that constraint.
+
+This isn’t the future I imagined or asked for. The shift has been disruptive, uncomfortable, and at times unsettling. I was skeptical. Then anxious. Then resistant. But ignoring this new reality is no longer possible.
+
+What LLMs offer isn’t magic — they offer leverage. They compress time. They lower activation energy. They allow ideas that once required months of spare time to become viable experiments.
+
+A couple days into this project, I was surprised by how much it already did. And yet, it didn’t feel the same as building something entirely by hand. That tension is real, but very little in this industry is truly built alone. We stand on frameworks, compilers, open-source ecosystems, and decades of collective work. LLMs are another layer in that stack.
+
+This repository is both a project and an exploration of that reality.
+
+
 ## Summary
 
 Warcraft Web is a full-stack TypeScript RTS game organized as a monorepo with four packages:
