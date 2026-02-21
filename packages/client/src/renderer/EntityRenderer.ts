@@ -72,8 +72,8 @@ export class EntityRenderer {
     this.parentContainer.addChild(this.entityContainer);
 
     this.unitShadowCtx = new GraphicsContext()
-      .ellipse(0, 3, 12, 6)
-      .fill({ color: 0x000000, alpha: 0.25 });
+      .ellipse(0, 0, 7, 3)
+      .fill({ color: 0x000000, alpha: 0.2 });
   }
 
   /**
@@ -138,10 +138,20 @@ export class EntityRenderer {
 
       const mov = world.getComponent(entityId, Movement);
       const unitType = world.getComponent(entityId, UnitType);
+      let bob = 0;
       if (unitType && mov?.isMoving) {
         const phase = (entityId * 2.39) % (Math.PI * 2);
-        const bob = Math.sin(performance.now() * 0.012 + phase) * 2;
-        sprite.container.y += bob;
+        bob = Math.sin(performance.now() * 0.012 + phase) * 2;
+      }
+      if (unitType) {
+        sprite.body.y = bob;
+        sprite.healthBar.y = -24 + bob;
+        sprite.label.y = -28 + bob;
+        if (sprite.shadow) {
+          sprite.shadow.y = 2;
+          const shadowScale = 1 - bob * 0.04;
+          sprite.shadow.scale.set(shadowScale, shadowScale);
+        }
       }
 
       sprite.container.zIndex = getTileDepth({ x: renderTileX, y: renderTileY });
@@ -199,6 +209,7 @@ export class EntityRenderer {
     let shadow: Graphics | null = null;
     if (unitType) {
       shadow = new Graphics(this.unitShadowCtx);
+      shadow.y = 2;
       container.addChild(shadow);
     }
 
