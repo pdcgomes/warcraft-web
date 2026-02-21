@@ -104,7 +104,11 @@ function startSinglePlayer(app: Application, container: HTMLElement, assetLoader
 
   const inputManager = new InputManager(app, renderer, localGame);
   const hud = new HUD(localGame, renderer, inputManager);
-  const eventLog = new EventLogPanel(localGame.eventLog);
+  const eventLog = new EventLogPanel(localGame.eventLog, {
+    world: localGame.world,
+    fog: localGame.fog,
+    renderer,
+  });
 
   const debugPanel = new DebugPanel();
   const debugRenderer = new DebugRenderer(localGame, renderer.entityRenderer);
@@ -273,7 +277,11 @@ function startMultiplayer(
 
   const inputManager = new InputManager(app, renderer, netGame as any);
   const hud = new HUD(netGame as any, renderer, inputManager);
-  const eventLog = new EventLogPanel(netGame.eventLog);
+  const eventLog = new EventLogPanel(netGame.eventLog, {
+    world: netGame.world,
+    fog: netGame.fog,
+    renderer,
+  });
 
   const TICK_MS = 100;
   let accumulator = 0;
