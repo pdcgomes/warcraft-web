@@ -28,6 +28,8 @@ export class MinimapRenderer {
   private readonly ctx: CanvasRenderingContext2D;
 
   private isDragging = false;
+  private dragOffsetX = 0;
+  private dragOffsetY = 0;
 
   private terrainCache: ImageData | null = null;
   private workingBuffer: ImageData | null = null;
@@ -192,12 +194,26 @@ export class MinimapRenderer {
       if (e.button !== 0) return;
       e.stopPropagation();
       this.isDragging = true;
-      this.panToMinimapPos(e);
+
+      const clickTile = this.mouseToTile(e);
+      const vp = this.getViewportTileRect();
+      const vpCenterX = vp.x + vp.w / 2;
+      const vpCenterY = vp.y + vp.h / 2;
+
+      if (this.isInsideRect(clickTile, vp)) {
+        this.dragOffsetX = clickTile.x - vpCenterX;
+        this.dragOffsetY = clickTile.y - vpCenterY;
+      } else {
+        this.dragOffsetX = 0;
+        this.dragOffsetY = 0;
+        this.panToTile(clickTile.x, clickTile.y);
+      }
     });
 
     window.addEventListener('mousemove', (e) => {
       if (!this.isDragging) return;
-      this.panToMinimapPos(e);
+      const tile = this.mouseToTile(e);
+      this.panToTile(tile.x - this.dragOffsetX, tile.y - this.dragOffsetY);
     });
 
     window.addEventListener('mouseup', (e) => {
@@ -206,18 +222,48 @@ export class MinimapRenderer {
     });
   }
 
-  private panToMinimapPos(e: MouseEvent): void {
+  private mouseToTile(e: MouseEvent): { x: number; y: number } {
     const rect = this.canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-
     const map = this.game.gameMap;
-    const scaleX = this.canvas.width / map.width;
-    const scaleY = this.canvas.height / map.height;
+    return {
+      x: (mx / rect.width) * map.width,
+      y: (my / rect.height) * map.height,
+    };
+  }
 
-    const tileX = mx / scaleX;
-    const tileY = my / scaleY;
+  private getViewportTileRect(): { x: number; y: number; w: number; h: number } {
+    const r = this.gameRenderer;
+    const screenW = r.app.screen.width;
+    const screenH = r.gameAreaHeight;
 
+    const corners = [
+      screenToTile(r.screenToWorld({ x: 0, y: 0 })),
+      screenToTile(r.screenToWorld({ x: screenW, y: 0 })),
+      screenToTile(r.screenToWorld({ x: screenW, y: screenH })),
+      screenToTile(r.screenToWorld({ x: 0, y: screenH })),
+    ];
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const c of corners) {
+      if (c.x < minX) minX = c.x;
+      if (c.y < minY) minY = c.y;
+      if (c.x > maxX) maxX = c.x;
+      if (c.y > maxY) maxY = c.y;
+    }
+
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+
+  private isInsideRect(
+    pt: { x: number; y: number },
+    r: { x: number; y: number; w: number; h: number },
+  ): boolean {
+    return pt.x >= r.x && pt.x <= r.x + r.w && pt.y >= r.y && pt.y <= r.y + r.h;
+  }
+
+  private panToTile(tileX: number, tileY: number): void {
     const worldPos = tileToScreen({ x: tileX, y: tileY });
     this.gameRenderer.centerOn(worldPos);
   }
