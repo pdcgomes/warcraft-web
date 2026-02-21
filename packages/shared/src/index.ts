@@ -82,8 +82,22 @@ export { TerrainType, TERRAIN_DATA } from './map/Terrain.js';
 export type { TerrainInfo } from './map/Terrain.js';
 export { GameMap } from './map/GameMap.js';
 export { generateStarterMap } from './map/MapGenerator.js';
-export type { ResourceSpawn, PlayerSpawn, GeneratedMap } from './map/MapGenerator.js';
+export type { ResourceSpawn as LegacyResourceSpawn, PlayerSpawn as LegacyPlayerSpawn, GeneratedMap } from './map/MapGenerator.js';
 export { findPath } from './map/Pathfinding.js';
+
+// Level generation
+export { LevelGenerator } from './map/LevelGenerator.js';
+export type { GeneratedLevel } from './map/LevelGenerator.js';
+export { SeededRng } from './map/SeededRng.js';
+export { createDefaultConfig, resolveMapDimensions, MAP_SIZE_PRESETS } from './map/LevelConfig.js';
+export type { LevelConfig, PlayerConfig, MapSize } from './map/LevelConfig.js';
+export { TerrainPass } from './map/TerrainPass.js';
+export { FactionPass } from './map/FactionPass.js';
+export type { PlayerSpawn } from './map/FactionPass.js';
+export { ResourcePass } from './map/ResourcePass.js';
+export type { ResourceSpawn } from './map/ResourcePass.js';
+export { StartingForcePass } from './map/StartingForcePass.js';
+export type { EntitySpawn, StartingResources } from './map/StartingForcePass.js';
 
 // Protocol
 export type {

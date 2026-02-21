@@ -3,9 +3,10 @@ import {
   MovementSystem, PatrolSystem, CombatSystem, ResourceGatheringSystem,
   ProductionSystem, BuildingConstructionSystem, CollisionSystem,
   RepairSystem, DeathCleanupSystem,
-  GameMap, generateStarterMap, toFixed, tileToScreen,
+  GameMap, toFixed, tileToScreen,
   PlayerResources, GameEventLog, FogOfWar,
   UNIT_DATA, BUILDING_DATA, meetsPrerequisites,
+  LevelGenerator, createDefaultConfig,
 } from '@warcraft-web/shared';
 import type {
   EntityId, UnitKind, FactionId, BuildingKind, Point,
@@ -69,9 +70,16 @@ export class NetworkGame {
     });
   }
 
-  init(): void {
-    const generated = generateStarterMap(64, 64);
-    this.gameMap = generated.map;
+  init(seed?: number): void {
+    const opponentFaction: FactionId = this.localFaction === 'humans' ? 'orcs' : 'humans';
+    const p1Faction: FactionId = this.localPlayerId === 1 ? this.localFaction : opponentFaction;
+    const p2Faction: FactionId = this.localPlayerId === 1 ? opponentFaction : this.localFaction;
+
+    const levelConfig = createDefaultConfig(p1Faction, p2Faction, seed !== undefined ? { seed } : undefined);
+    const generator = new LevelGenerator();
+    const level = generator.generate(levelConfig);
+
+    this.gameMap = level.map;
 
     this.movementSystem = new MovementSystem();
     this.patrolSystem = new PatrolSystem();
@@ -105,12 +113,13 @@ export class NetworkGame {
       return EntityFactory.createUnit(world, unitKind, spawnPos, playerId, faction);
     });
 
-    this.playerResources.get(1).gold = 400;
-    this.playerResources.get(1).lumber = 200;
-    this.playerResources.get(2).gold = 400;
-    this.playerResources.get(2).lumber = 200;
+    for (const sr of level.startingResources) {
+      const res = this.playerResources.get(sr.playerId);
+      res.gold = sr.gold;
+      res.lumber = sr.lumber;
+    }
 
-    for (const spawn of generated.resourceSpawns) {
+    for (const spawn of level.resourceSpawns) {
       EntityFactory.createResource(
         this.world,
         spawn.type,
@@ -119,28 +128,27 @@ export class NetworkGame {
       );
     }
 
-    // Player 1 (Humans)
-    const p1 = generated.playerSpawns[0].pos;
-    EntityFactory.createBuilding(this.world, 'town_hall', { x: toFixed(p1.x), y: toFixed(p1.y) }, 1, 'humans', true);
-    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p1.x + 1), y: toFixed(p1.y + 4) }, 1, 'humans');
-    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p1.x + 2), y: toFixed(p1.y + 4) }, 1, 'humans');
-    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p1.x + 3), y: toFixed(p1.y + 4) }, 1, 'humans');
-    EntityFactory.createUnit(this.world, 'footman', { x: toFixed(p1.x - 2), y: toFixed(p1.y + 1) }, 1, 'humans');
-    EntityFactory.createUnit(this.world, 'footman', { x: toFixed(p1.x - 2), y: toFixed(p1.y + 2) }, 1, 'humans');
+    for (const es of level.entitySpawns) {
+      if (es.entityType === 'building') {
+        EntityFactory.createBuilding(
+          this.world,
+          es.kind as BuildingKind,
+          { x: toFixed(es.pos.x), y: toFixed(es.pos.y) },
+          es.playerId, es.faction, true,
+        );
+      } else {
+        EntityFactory.createUnit(
+          this.world,
+          es.kind as UnitKind,
+          { x: toFixed(es.pos.x), y: toFixed(es.pos.y) },
+          es.playerId, es.faction,
+        );
+      }
+    }
 
-    // Player 2 (Orcs)
-    const p2 = generated.playerSpawns[1].pos;
-    EntityFactory.createBuilding(this.world, 'great_hall', { x: toFixed(p2.x), y: toFixed(p2.y) }, 2, 'orcs', true);
-    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p2.x + 1), y: toFixed(p2.y - 2) }, 2, 'orcs');
-    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p2.x + 2), y: toFixed(p2.y - 2) }, 2, 'orcs');
-    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p2.x + 3), y: toFixed(p2.y - 2) }, 2, 'orcs');
-    EntityFactory.createUnit(this.world, 'grunt', { x: toFixed(p2.x + 4), y: toFixed(p2.y + 1) }, 2, 'orcs');
-    EntityFactory.createUnit(this.world, 'grunt', { x: toFixed(p2.x + 4), y: toFixed(p2.y + 2) }, 2, 'orcs');
-
-    // Center camera on own player spawn
-    const spawnIdx = this.localPlayerId === 1 ? 0 : 1;
-    const sp = generated.playerSpawns[spawnIdx].pos;
-    this.spawnScreen = tileToScreen({ x: sp.x + 1, y: sp.y + 1 });
+    const mySpawn = level.playerSpawns.find(s => s.playerId === this.localPlayerId);
+    const camPos = mySpawn ? mySpawn.pos : { x: 3, y: 3 };
+    this.spawnScreen = tileToScreen({ x: camPos.x + 1, y: camPos.y + 1 });
 
     this.fog = new FogOfWar(this.gameMap.width, this.gameMap.height);
     this.recalculateSupply();
