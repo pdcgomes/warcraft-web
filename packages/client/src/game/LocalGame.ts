@@ -152,7 +152,10 @@ export class LocalGame implements AIGameInterface {
 
     this.aiSystem = new AISystem(this.gameMap, this.playerResources, this);
     this.world.addSystem(this.aiSystem);
-    this.aiSystem.addPlayer(2, opponentFaction, AI_PRESETS.balanced);
+    const presetKeys = Object.keys(AI_PRESETS);
+    const aiPreset = AI_PRESETS[presetKeys[Math.floor(Math.random() * presetKeys.length)]];
+    console.log(`[AI] Personality: ${aiPreset.name}`);
+    this.aiSystem.addPlayer(2, opponentFaction, aiPreset);
   }
 
   /** Advance one simulation tick. */
