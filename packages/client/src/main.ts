@@ -1,11 +1,13 @@
 import { Application } from 'pixi.js';
 import { Movement, UnitType, UNIT_DATA, BUILDING_DATA } from '@warcraft-web/shared';
+import type { FactionId } from '@warcraft-web/shared';
 import { GameRenderer } from './renderer/GameRenderer.js';
 import { InputManager } from './input/InputManager.js';
 import { HUD } from './ui/HUD.js';
 import { EventLogPanel } from './ui/EventLogPanel.js';
 import { MainMenu } from './ui/MainMenu.js';
 import { LobbyScreen } from './ui/LobbyScreen.js';
+import { FactionSelect } from './ui/FactionSelect.js';
 import { LocalGame } from './game/LocalGame.js';
 import { NetworkGame } from './game/NetworkGame.js';
 import { debugState } from './debug/DebugState.js';
@@ -46,11 +48,23 @@ async function main() {
 
   // Menu system
   const mainMenu = new MainMenu();
+  const factionSelect = new FactionSelect(assetLoader);
   const lobbyScreen = new LobbyScreen();
 
   mainMenu.onSinglePlayer = () => {
     mainMenu.hide();
-    startSinglePlayer(app, container, assetLoader);
+    factionSelect.show();
+  };
+
+  factionSelect.onSelect = (faction) => {
+    factionSelect.hide();
+    sessionStorage.setItem('faction', faction);
+    startSinglePlayer(app, container, assetLoader, faction);
+  };
+
+  factionSelect.onBack = () => {
+    factionSelect.hide();
+    mainMenu.show();
   };
 
   mainMenu.onMultiplayer = () => {
@@ -60,7 +74,9 @@ async function main() {
   };
 
   if (isRestart) {
-    startSinglePlayer(app, container, assetLoader);
+    const savedFaction = (sessionStorage.getItem('faction') ?? 'humans') as FactionId;
+    sessionStorage.removeItem('faction');
+    startSinglePlayer(app, container, assetLoader, savedFaction);
   } else {
     mainMenu.show();
   }
@@ -76,9 +92,9 @@ async function main() {
   };
 }
 
-function startSinglePlayer(app: Application, container: HTMLElement, assetLoader: AssetLoader): void {
+function startSinglePlayer(app: Application, container: HTMLElement, assetLoader: AssetLoader, faction: FactionId): void {
   const localGame = new LocalGame();
-  localGame.init();
+  localGame.init(faction);
 
   const renderer = new GameRenderer(app, localGame, assetLoader);
   renderer.centerOn(localGame.spawnScreen);

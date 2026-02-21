@@ -68,6 +68,32 @@ export class AssetLoader {
     return this.textures.get(path) ?? null;
   }
 
+  /**
+   * Renders a loaded (chroma-keyed) texture to a data URL at the given size.
+   * Useful for populating DOM `<img>` elements with processed sprites.
+   */
+  toDataUrl(path: string, size: number = 80): string | null {
+    const texture = this.textures.get(path);
+    if (!texture) return null;
+
+    const source = texture.source.resource as HTMLCanvasElement | HTMLImageElement;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+
+    const sw = source instanceof HTMLCanvasElement ? source.width : source.naturalWidth;
+    const sh = source instanceof HTMLCanvasElement ? source.height : source.naturalHeight;
+    const scale = Math.min(size / sw, size / sh);
+    const dw = Math.round(sw * scale);
+    const dh = Math.round(sh * scale);
+    const dx = Math.round((size - dw) / 2);
+    const dy = Math.round((size - dh) / 2);
+
+    ctx.drawImage(source, 0, 0, sw, sh, dx, dy, dw, dh);
+    return canvas.toDataURL();
+  }
+
   private needsChromaKey(path: string): boolean {
     return !path.startsWith('assets/terrain/');
   }
