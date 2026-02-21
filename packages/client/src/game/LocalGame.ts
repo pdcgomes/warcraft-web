@@ -24,7 +24,7 @@ export class LocalGame implements AIGameInterface {
 
   /** The player ID controlled by this client. */
   readonly localPlayerId: number = 1;
-  readonly localFaction: FactionId = 'humans';
+  localFaction: FactionId = 'humans';
 
   /** World-pixel position of the local player's spawn (for initial camera). */
   spawnScreen: Point = { x: 0, y: 0 };
@@ -56,7 +56,17 @@ export class LocalGame implements AIGameInterface {
   private repairSystem!: RepairSystem;
   private deathSystem!: DeathCleanupSystem;
 
-  init(): void {
+  init(faction: FactionId = 'humans'): void {
+    this.localFaction = faction;
+    const opponentFaction: FactionId = faction === 'humans' ? 'orcs' : 'humans';
+
+    const FACTION_START: Record<FactionId, { hall: BuildingKind; soldier: UnitKind }> = {
+      humans: { hall: 'town_hall', soldier: 'footman' },
+      orcs:   { hall: 'great_hall', soldier: 'grunt' },
+    };
+    const p1Start = FACTION_START[faction];
+    const p2Start = FACTION_START[opponentFaction];
+
     const generated = generateStarterMap(64, 64);
     this.gameMap = generated.map;
 
@@ -85,11 +95,11 @@ export class LocalGame implements AIGameInterface {
     this.world.addSystem(this.repairSystem);
     this.world.addSystem(this.deathSystem);
 
-    this.productionSystem.setSpawnCallback((world, unitKind, spawnPos, playerId, faction) => {
+    this.productionSystem.setSpawnCallback((world, unitKind, spawnPos, playerId, fac) => {
       const s = this.playerResources.getSupply(playerId);
       const data = UNIT_DATA[unitKind];
       s.used += data.supply;
-      return EntityFactory.createUnit(world, unitKind, spawnPos, playerId, faction);
+      return EntityFactory.createUnit(world, unitKind, spawnPos, playerId, fac);
     });
 
     this.playerResources.get(1).gold = 2000;
@@ -107,31 +117,31 @@ export class LocalGame implements AIGameInterface {
       );
     }
 
-    // Spawn Player 1 (Humans) - top-left
+    // Spawn Player 1 (local) - top-left
     const p1 = generated.playerSpawns[0].pos;
     EntityFactory.createBuilding(
-      this.world, 'town_hall',
+      this.world, p1Start.hall,
       { x: toFixed(p1.x), y: toFixed(p1.y) },
-      1, 'humans', true,
+      1, faction, true,
     );
-    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p1.x + 1), y: toFixed(p1.y + 4) }, 1, 'humans');
-    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p1.x + 2), y: toFixed(p1.y + 4) }, 1, 'humans');
-    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p1.x + 3), y: toFixed(p1.y + 4) }, 1, 'humans');
-    EntityFactory.createUnit(this.world, 'footman', { x: toFixed(p1.x - 2), y: toFixed(p1.y + 1) }, 1, 'humans');
-    EntityFactory.createUnit(this.world, 'footman', { x: toFixed(p1.x - 2), y: toFixed(p1.y + 2) }, 1, 'humans');
+    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p1.x + 1), y: toFixed(p1.y + 4) }, 1, faction);
+    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p1.x + 2), y: toFixed(p1.y + 4) }, 1, faction);
+    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p1.x + 3), y: toFixed(p1.y + 4) }, 1, faction);
+    EntityFactory.createUnit(this.world, p1Start.soldier, { x: toFixed(p1.x - 2), y: toFixed(p1.y + 1) }, 1, faction);
+    EntityFactory.createUnit(this.world, p1Start.soldier, { x: toFixed(p1.x - 2), y: toFixed(p1.y + 2) }, 1, faction);
 
-    // Spawn Player 2 (Orcs) - bottom-right
+    // Spawn Player 2 (AI) - bottom-right
     const p2 = generated.playerSpawns[1].pos;
     EntityFactory.createBuilding(
-      this.world, 'great_hall',
+      this.world, p2Start.hall,
       { x: toFixed(p2.x), y: toFixed(p2.y) },
-      2, 'orcs', true,
+      2, opponentFaction, true,
     );
-    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p2.x + 1), y: toFixed(p2.y - 2) }, 2, 'orcs');
-    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p2.x + 2), y: toFixed(p2.y - 2) }, 2, 'orcs');
-    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p2.x + 3), y: toFixed(p2.y - 2) }, 2, 'orcs');
-    EntityFactory.createUnit(this.world, 'grunt', { x: toFixed(p2.x + 4), y: toFixed(p2.y + 1) }, 2, 'orcs');
-    EntityFactory.createUnit(this.world, 'grunt', { x: toFixed(p2.x + 4), y: toFixed(p2.y + 2) }, 2, 'orcs');
+    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p2.x + 1), y: toFixed(p2.y - 2) }, 2, opponentFaction);
+    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p2.x + 2), y: toFixed(p2.y - 2) }, 2, opponentFaction);
+    EntityFactory.createUnit(this.world, 'worker', { x: toFixed(p2.x + 3), y: toFixed(p2.y - 2) }, 2, opponentFaction);
+    EntityFactory.createUnit(this.world, p2Start.soldier, { x: toFixed(p2.x + 4), y: toFixed(p2.y + 1) }, 2, opponentFaction);
+    EntityFactory.createUnit(this.world, p2Start.soldier, { x: toFixed(p2.x + 4), y: toFixed(p2.y + 2) }, 2, opponentFaction);
 
     this.spawnScreen = tileToScreen({ x: p1.x + 1, y: p1.y + 1 });
 
@@ -142,7 +152,7 @@ export class LocalGame implements AIGameInterface {
 
     this.aiSystem = new AISystem(this.gameMap, this.playerResources, this);
     this.world.addSystem(this.aiSystem);
-    this.aiSystem.addPlayer(2, 'orcs', AI_PRESETS.balanced);
+    this.aiSystem.addPlayer(2, opponentFaction, AI_PRESETS.balanced);
   }
 
   /** Advance one simulation tick. */
